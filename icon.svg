@@ -1,0 +1,140 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Background gradient: soft warm off-white / light parchment -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F5F2EE;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#E8E2D8;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- Ink well body gradient: deep navy with subtle blue sheen -->
+    <linearGradient id="bodyGrad" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" style="stop-color:#2C3A5C;stop-opacity:1" />
+      <stop offset="60%" style="stop-color:#1A2540;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0F1628;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- Ink well rim gradient: slightly lighter navy -->
+    <linearGradient id="rimGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#3D4F78;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1E2D4E;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- Ink surface gradient: dark ink with a subtle sheen/reflection -->
+    <linearGradient id="inkGrad" x1="15%" y1="10%" x2="85%" y2="90%">
+      <stop offset="0%" style="stop-color:#1C2B50;stop-opacity:1" />
+      <stop offset="40%" style="stop-color:#0D1830;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#080F1E;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- Highlight on the ink surface -->
+    <radialGradient id="inkSheen" cx="38%" cy="35%" r="35%">
+      <stop offset="0%" style="stop-color:#4A6BAA;stop-opacity:0.6" />
+      <stop offset="100%" style="stop-color:#4A6BAA;stop-opacity:0" />
+    </radialGradient>
+
+    <!-- Body highlight: subtle left-edge specular -->
+    <linearGradient id="specular" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:0.10" />
+      <stop offset="30%" style="stop-color:#FFFFFF;stop-opacity:0" />
+    </linearGradient>
+
+    <!-- Drop shadow filter -->
+    <filter id="shadow" x="-15%" y="-10%" width="130%" height="130%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="12" />
+      <feOffset dx="0" dy="8" result="offsetBlur" />
+      <feComposite in="offsetBlur" in2="SourceAlpha" operator="out" result="shadowOnly" />
+      <feFlood flood-color="#0F1628" flood-opacity="0.35" result="shadowColor" />
+      <feComposite in="shadowColor" in2="shadowOnly" operator="in" result="coloredShadow" />
+      <feMerge>
+        <feMergeNode in="coloredShadow" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <!-- Ink drip gradient -->
+    <linearGradient id="dripGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#1A2540;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0A1020;stop-opacity:0.8" />
+    </linearGradient>
+  </defs>
+
+  <!-- App icon rounded rect background -->
+  <rect x="0" y="0" width="512" height="512" rx="110" ry="110" fill="url(#bgGrad)" />
+
+  <!-- Subtle grid lines (parchment / notebook feel) -->
+  <line x1="64" y1="160" x2="448" y2="160" stroke="#C8BFB0" stroke-width="1" stroke-opacity="0.5" />
+  <line x1="64" y1="200" x2="448" y2="200" stroke="#C8BFB0" stroke-width="1" stroke-opacity="0.4" />
+  <line x1="64" y1="240" x2="448" y2="240" stroke="#C8BFB0" stroke-width="1" stroke-opacity="0.4" />
+  <line x1="64" y1="280" x2="448" y2="280" stroke="#C8BFB0" stroke-width="1" stroke-opacity="0.4" />
+  <line x1="64" y1="320" x2="448" y2="320" stroke="#C8BFB0" stroke-width="1" stroke-opacity="0.4" />
+  <line x1="64" y1="360" x2="448" y2="360" stroke="#C8BFB0" stroke-width="1" stroke-opacity="0.4" />
+  <!-- Left margin line (red, classic notebook) -->
+  <line x1="120" y1="140" x2="120" y2="400" stroke="#D4967A" stroke-width="2" stroke-opacity="0.5" />
+
+  <!-- Group: ink well vessel with shadow -->
+  <g filter="url(#shadow)">
+
+    <!-- INK WELL BODY: wide squat octagonal jar shape -->
+    <!-- Base platform / foot -->
+    <rect x="168" y="350" width="176" height="18" rx="6" ry="6" fill="url(#rimGrad)" />
+
+    <!-- Main body: trapezoid-ish shape wider at bottom, narrower at neck -->
+    <!-- Using a path for a classic ink well silhouette -->
+    <path d="
+      M 200 350
+      L 180 290
+      Q 176 270 190 255
+      L 205 242
+      Q 215 236 230 235
+      L 282 235
+      Q 297 236 307 242
+      L 322 255
+      Q 336 270 332 290
+      L 312 350
+      Z
+    " fill="url(#bodyGrad)" />
+
+    <!-- Neck / collar ring -->
+    <rect x="210" y="225" width="92" height="22" rx="8" ry="8" fill="url(#rimGrad)" />
+
+    <!-- Opening rim (top of neck) -->
+    <ellipse cx="256" cy="226" rx="40" ry="10" fill="#2C3A5C" />
+
+    <!-- Ink surface inside the opening -->
+    <ellipse cx="256" cy="226" rx="33" ry="8" fill="url(#inkGrad)" />
+    <!-- Ink surface sheen -->
+    <ellipse cx="256" cy="226" rx="33" ry="8" fill="url(#inkSheen)" />
+
+    <!-- Body specular highlight (left edge shimmer) -->
+    <path d="
+      M 200 350
+      L 180 290
+      Q 176 270 190 255
+      L 205 242
+      Q 215 236 230 235
+      L 282 235
+      Q 297 236 307 242
+      L 322 255
+      Q 336 270 332 290
+      L 312 350
+      Z
+    " fill="url(#specular)" />
+
+    <!-- Subtle ink drip on the outside, left side -->
+    <path d="
+      M 242 236
+      Q 238 255 240 275
+      Q 241 285 238 295
+      Q 235 308 239 316
+      Q 242 322 240 330
+    " stroke="#0D1830" stroke-width="4" stroke-linecap="round" fill="none" stroke-opacity="0.6" />
+
+    <!-- Bottom base edge highlight -->
+    <rect x="168" y="350" width="176" height="5" rx="3" ry="3" fill="#FFFFFF" fill-opacity="0.07" />
+
+  </g>
+
+  <!-- Small ink drop / drip below nib (decorative, gives it life) -->
+  <ellipse cx="256" cy="375" rx="6" ry="4" fill="#0F1628" fill-opacity="0.25" />
+
+</svg>
