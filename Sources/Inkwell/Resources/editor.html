@@ -349,12 +349,10 @@
 
   <script type="module">
     import { Editor, defaultValueCtx, editorViewCtx, rootCtx } from 'https://esm.sh/@milkdown/kit@7.19.1/core';
-    import { commonmark, toggleStrongCommand, toggleEmphasisCommand, wrapInBlockquoteCommand, turnIntoTextCommand, insertHrCommand } from 'https://esm.sh/@milkdown/kit@7.19.1/preset/commonmark';
-    import { gfm, toggleStrikethroughCommand } from 'https://esm.sh/@milkdown/kit@7.19.1/preset/gfm';
+    import { commonmark } from 'https://esm.sh/@milkdown/kit@7.19.1/preset/commonmark';
+    import { gfm } from 'https://esm.sh/@milkdown/kit@7.19.1/preset/gfm';
     import { listener, listenerCtx } from 'https://esm.sh/@milkdown/kit@7.19.1/plugin/listener';
-    import { getMarkdown, replaceAll, callCommand } from 'https://esm.sh/@milkdown/kit@7.19.1/utils';
-    import { tooltip, tooltipFactory } from 'https://esm.sh/@milkdown/kit@7.19.1/plugin/tooltip';
-    import { slash, slashFactory } from 'https://esm.sh/@milkdown/kit@7.19.1/plugin/slash';
+    import { getMarkdown, replaceAll } from 'https://esm.sh/@milkdown/kit@7.19.1/utils';
 
     // ─── State ────────────────────────────────────────────────────────────────
 
@@ -401,127 +399,13 @@
       applyAppearance(mode);
     };
 
-    // ─── Tooltip (floating toolbar on selection) ──────────────────────────────
-
-    const inkTooltip = tooltipFactory('inkTooltip');
-
-    const tooltipView = (ctx) => {
-      return {
-        dom: (() => {
-          const div = document.createElement('div');
-          div.className = 'tooltip-bar';
-
-          const items = [
-            { label: 'B', title: 'Bold (Cmd+B)', cmd: toggleStrongCommand, style: 'font-weight:700' },
-            { label: 'I', title: 'Italic (Cmd+I)', cmd: toggleEmphasisCommand, style: 'font-style:italic' },
-            { label: 'S', title: 'Strikethrough', cmd: toggleStrikethroughCommand, style: 'text-decoration:line-through' },
-          ];
-
-          items.forEach(({ label, title, cmd, style }) => {
-            const btn = document.createElement('button');
-            btn.textContent = label;
-            btn.title = title;
-            btn.style.cssText = style;
-            btn.onmousedown = (e) => {
-              e.preventDefault();
-              ctx.get(editorViewCtx).focus();
-              editor.action(callCommand(cmd.key));
-            };
-            div.appendChild(btn);
-          });
-
-          return div;
-        })(),
-        update: (updatedView, prevState) => {},
-      };
-    };
-
-    // ─── Slash Menu (type / for commands) ───────────────────────────────────
-
-    const inkSlash = slashFactory('inkSlash');
-
-    const slashItems = [
-      { icon: 'H1', label: 'Heading 1', md: '# ' },
-      { icon: 'H2', label: 'Heading 2', md: '## ' },
-      { icon: 'H3', label: 'Heading 3', md: '### ' },
-      { icon: '•', label: 'Bullet List', md: '- ' },
-      { icon: '1.', label: 'Numbered List', md: '1. ' },
-      { icon: '☐', label: 'Task List', md: '- [ ] ' },
-      { icon: '>', label: 'Blockquote', md: '> ' },
-      { icon: '—', label: 'Divider', md: '---\n' },
-      { icon: '{ }', label: 'Code Block', md: '```\n\n```' },
-    ];
-
-    let activeSlashIndex = 0;
-    let slashMenuEl = null;
-    let slashVisible = false;
-
-    const slashView = (ctx) => {
-      const div = document.createElement('div');
-      div.className = 'slash-menu';
-      div.style.display = 'none';
-      slashMenuEl = div;
-
-      function render(filter = '') {
-        div.innerHTML = '';
-        const filtered = slashItems.filter(i =>
-          i.label.toLowerCase().includes(filter.toLowerCase())
-        );
-        if (filtered.length === 0) {
-          div.style.display = 'none';
-          slashVisible = false;
-          return;
-        }
-        activeSlashIndex = 0;
-        filtered.forEach((item, idx) => {
-          const row = document.createElement('div');
-          row.className = 'slash-item' + (idx === 0 ? ' active' : '');
-          row.innerHTML = `<span class="icon">${item.icon}</span><span>${item.label}</span>`;
-          row.onmousedown = (e) => {
-            e.preventDefault();
-            insertSlashItem(ctx, item);
-          };
-          div.appendChild(row);
-        });
-        div.style.display = '';
-        slashVisible = true;
-      }
-
-      return {
-        dom: div,
-        update: (updatedView, prevState) => {},
-        show: (filter) => render(filter),
-        hide: () => { div.style.display = 'none'; slashVisible = false; },
-      };
-    };
-
-    function insertSlashItem(ctx, item) {
-      const view = ctx.get(editorViewCtx);
-      const { state } = view;
-      const { from } = state.selection;
-
-      // Find the slash character position
-      const text = state.doc.textBetween(Math.max(0, from - 20), from);
-      const slashPos = text.lastIndexOf('/');
-      if (slashPos >= 0) {
-        const deleteFrom = from - (text.length - slashPos);
-        const tr = state.tr.delete(deleteFrom, from).insertText(item.md, deleteFrom);
-        view.dispatch(tr);
-      }
-      view.focus();
-    }
-
     // ─── Create Editor ────────────────────────────────────────────────────────
 
     editor = await Editor.make()
       .config((ctx) => {
-        // Mount into our root div
         ctx.set(rootCtx, document.getElementById('editor-root'));
-
-        // Empty default — content set via setContent() after ready
         ctx.set(defaultValueCtx, '');
 
-        // Wire up change listener
         ctx.get(listenerCtx).markdownUpdated((ctx, markdown, prevMarkdown) => {
           if (isSettingContent) return;
           if (markdown === prevMarkdown) return;
@@ -529,22 +413,10 @@
             window.webkit.messageHandlers.contentChange.postMessage(markdown);
           }
         });
-
-        // Tooltip config
-        ctx.set(inkTooltip.key, {
-          view: tooltipView,
-        });
-
-        // Slash config
-        ctx.set(inkSlash.key, {
-          view: slashView,
-        });
       })
       .use(commonmark)
       .use(gfm)
       .use(listener)
-      .use(inkTooltip)
-      .use(inkSlash)
       .create();
 
     // Apply any content that was set before the editor was ready
