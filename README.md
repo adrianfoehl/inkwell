@@ -6,7 +6,7 @@ A lightweight markdown editor for macOS that renders your text as you type. No s
 
 ## Why Inkwell?
 
-Most markdown tools are either too much (Obsidian, Typora) or too little (Quick Look, TextEdit). Inkwell sits in the middle: a single-purpose app that opens `.md` files, shows them beautifully formatted, and lets you edit without switching modes. It's fast, offline, and native to macOS.
+I work with AI agents that use dozens of markdown files for skills, prompts, and configuration. I needed a simple way to read and edit them — formatted, not raw. Typora is overkill, Quick Look can't edit, and VS Code doesn't render inline. So I built Inkwell: open a `.md` file, see it beautifully formatted, edit it right there. No mode switching, no project setup, no clutter.
 
 ## Features
 
