@@ -339,58 +339,69 @@ struct ContentView: View {
     private func computeDiff(old: String, new: String) -> [DiffLine] {
         let oldLines = old.components(separatedBy: .newlines)
         let newLines = new.components(separatedBy: .newlines)
+
+        // LCS-based diff
+        let lcs = longestCommonSubsequence(oldLines, newLines)
         var result: [DiffLine] = []
-
-        let oldSet = Set(oldLines)
-        let newSet = Set(newLines)
-
-        // Simple line-based diff: show only changed lines with context
         var oldIdx = 0
         var newIdx = 0
-        var contextBudget = 0
+        var lcsIdx = 0
+        var skippedUnchanged = 0
 
         while oldIdx < oldLines.count || newIdx < newLines.count {
-            let oldLine = oldIdx < oldLines.count ? oldLines[oldIdx] : nil
-            let newLine = newIdx < newLines.count ? newLines[newIdx] : nil
-
-            if oldLine == newLine {
-                // Unchanged line — only show if near a change
-                if contextBudget > 0 {
-                    result.append(DiffLine(prefix: " ", text: oldLine ?? "", kind: .unchanged))
-                    contextBudget -= 1
-                } else if !result.isEmpty && result.last?.kind != .separator {
-                    result.append(DiffLine(prefix: "·", text: "···", kind: .separator))
-                }
+            if lcsIdx < lcs.count,
+               oldIdx < oldLines.count, oldLines[oldIdx] == lcs[lcsIdx],
+               newIdx < newLines.count, newLines[newIdx] == lcs[lcsIdx] {
+                // Unchanged — skip but track count
+                skippedUnchanged += 1
                 oldIdx += 1
                 newIdx += 1
-            } else if let ol = oldLine, !newSet.contains(ol) {
-                result.append(DiffLine(prefix: "−", text: ol, kind: .removed))
+                lcsIdx += 1
+            } else if oldIdx < oldLines.count && (lcsIdx >= lcs.count || oldLines[oldIdx] != lcs[lcsIdx]) {
+                if skippedUnchanged > 0 {
+                    result.append(DiffLine(prefix: "·", text: "\(skippedUnchanged) unchanged lines", kind: .separator))
+                    skippedUnchanged = 0
+                }
+                result.append(DiffLine(prefix: "−", text: oldLines[oldIdx], kind: .removed))
                 oldIdx += 1
-                contextBudget = 2
-            } else if let nl = newLine, !oldSet.contains(nl) {
-                result.append(DiffLine(prefix: "+", text: nl, kind: .added))
+            } else if newIdx < newLines.count && (lcsIdx >= lcs.count || newLines[newIdx] != lcs[lcsIdx]) {
+                if skippedUnchanged > 0 {
+                    result.append(DiffLine(prefix: "·", text: "\(skippedUnchanged) unchanged lines", kind: .separator))
+                    skippedUnchanged = 0
+                }
+                result.append(DiffLine(prefix: "+", text: newLines[newIdx], kind: .added))
                 newIdx += 1
-                contextBudget = 2
-            } else {
-                // Line exists in both but at different positions — treat as change
-                if let ol = oldLine {
-                    result.append(DiffLine(prefix: "−", text: ol, kind: .removed))
-                    oldIdx += 1
-                }
-                if let nl = newLine {
-                    result.append(DiffLine(prefix: "+", text: nl, kind: .added))
-                    newIdx += 1
-                }
-                contextBudget = 2
             }
         }
 
-        // Remove trailing separator
-        if result.last?.kind == .separator {
-            result.removeLast()
+        if result.isEmpty {
+            result.append(DiffLine(prefix: "✓", text: "No changes", kind: .separator))
         }
 
         return result
+    }
+
+    private func longestCommonSubsequence(_ a: [String], _ b: [String]) -> [String] {
+        let m = a.count, n = b.count
+        var dp = Array(repeating: Array(repeating: 0, count: n + 1), count: m + 1)
+        for i in 1...m {
+            for j in 1...n {
+                dp[i][j] = a[i-1] == b[j-1] ? dp[i-1][j-1] + 1 : max(dp[i-1][j], dp[i][j-1])
+            }
+        }
+        var result: [String] = []
+        var i = m, j = n
+        while i > 0 && j > 0 {
+            if a[i-1] == b[j-1] {
+                result.append(a[i-1])
+                i -= 1; j -= 1
+            } else if dp[i-1][j] > dp[i][j-1] {
+                i -= 1
+            } else {
+                j -= 1
+            }
+        }
+        return result.reversed()
     }
 
     // MARK: - Front Matter Banner
