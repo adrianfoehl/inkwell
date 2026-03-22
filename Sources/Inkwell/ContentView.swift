@@ -20,6 +20,9 @@ struct ContentView: View {
                 if hasFile && !frontMatter.isEmpty {
                     frontMatterBanner
                 }
+                if hasFile {
+                    formatBar
+                }
                 ZStack {
                     if hasFile {
                         InkEditorView(text: text) { newText in
@@ -164,6 +167,48 @@ struct ContentView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 6)
         .background(.bar)
+    }
+
+    // MARK: - Format Bar
+
+    private var formatBar: some View {
+        HStack(spacing: 2) {
+            formatButton("B", help: "Bold (⌘B)") { sendFormat("bold") }
+            formatButton("I", help: "Italic (⌘I)") { sendFormat("italic") }
+            formatButton("S", help: "Strikethrough (⇧⌘D)") { sendFormat("strikethrough") }
+            formatButton("</>", help: "Code (⌘E)") { sendFormat("code") }
+
+            Divider().frame(height: 16).padding(.horizontal, 4)
+
+            formatButton("H1", help: "Heading 1 (⌥⌘1)") { sendFormat("h1") }
+            formatButton("H2", help: "Heading 2 (⌥⌘2)") { sendFormat("h2") }
+            formatButton("H3", help: "Heading 3 (⌥⌘3)") { sendFormat("h3") }
+
+            Divider().frame(height: 16).padding(.horizontal, 4)
+
+            formatButton("•", help: "Bullet List") { sendFormat("bulletList") }
+            formatButton("1.", help: "Numbered List") { sendFormat("orderedList") }
+            formatButton(">", help: "Blockquote") { sendFormat("blockquote") }
+
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 4)
+        .background(.bar)
+    }
+
+    private func formatButton(_ label: String, help: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(size: 12, weight: label == "B" ? .bold : .regular))
+                .frame(minWidth: 24, minHeight: 22)
+        }
+        .buttonStyle(.plain)
+        .help(help)
+    }
+
+    private func sendFormat(_ cmd: String) {
+        NotificationCenter.default.post(name: .editorFormatCommand, object: cmd)
     }
 
     // MARK: - Front Matter Banner
