@@ -1,4 +1,5 @@
 import MarkdownUI
+import HighlightSwift
 import SwiftUI
 
 extension Theme {
@@ -46,17 +47,8 @@ extension Theme {
                 .markdownMargin(top: 8, bottom: 8)
         }
         .codeBlock { configuration in
-            ScrollView(.horizontal, showsIndicators: false) {
-                configuration.label
-                    .markdownTextStyle {
-                        FontFamilyVariant(.monospaced)
-                        FontSize(.em(0.85))
-                    }
-            }
-            .padding(12)
-            .background(.quaternary)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .markdownMargin(top: 8, bottom: 8)
+            HighlightedCodeBlock(code: configuration.content, language: configuration.language)
+                .markdownMargin(top: 8, bottom: 8)
         }
         .paragraph { configuration in
             configuration.label
@@ -67,4 +59,33 @@ extension Theme {
             configuration.label
                 .markdownMargin(top: .em(0.2))
         }
+}
+
+struct HighlightedCodeBlock: View {
+    let code: String
+    let language: String?
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            codeContent
+        }
+        .padding(12)
+        .background(.quaternary)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    @ViewBuilder
+    private var codeContent: some View {
+        if let language = language, let lang = HighlightLanguage(rawValue: language) {
+            CodeText(code)
+                .codeTextColors(.theme(.xcode))
+                .highlightLanguage(lang)
+                .font(.system(.callout, design: .monospaced))
+        } else {
+            CodeText(code)
+                .codeTextColors(.theme(.xcode))
+                .highlightMode(.automatic)
+                .font(.system(.callout, design: .monospaced))
+        }
+    }
 }
