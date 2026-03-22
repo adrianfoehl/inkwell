@@ -10,15 +10,14 @@ struct InkEditorView: NSViewRepresentable {
         config.userContentController.add(context.coordinator, name: "contentChange")
         config.userContentController.add(context.coordinator, name: "editorReady")
 
-        // Allow outgoing network for CDN (esm.sh)
-        config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
-
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.wantsLayer = true
         webView.layer?.masksToBounds = true
 
-        if let url = Bundle.module.url(forResource: "editor", withExtension: "html") {
-            webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+        // Load HTML as string so network imports (esm.sh) are allowed
+        if let url = Bundle.module.url(forResource: "editor", withExtension: "html"),
+           let html = try? String(contentsOf: url, encoding: .utf8) {
+            webView.loadHTMLString(html, baseURL: URL(string: "https://esm.sh"))
         }
 
         context.coordinator.webView = webView
@@ -27,7 +26,6 @@ struct InkEditorView: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: WKWebView, context: Context) {
-        // Only push content if it changed externally (file load)
         if context.coordinator.lastSetContent != text {
             context.coordinator.setContent(text)
         }
@@ -50,7 +48,6 @@ struct InkEditorView: NSViewRepresentable {
             self.onTextChange = onTextChange
             super.init()
 
-            // Observe system appearance changes
             appearanceObserver = NSApp.observe(\.effectiveAppearance) { [weak self] app, _ in
                 let dark = app.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
                 if dark != self?.isDarkMode {
@@ -71,15 +68,10 @@ struct InkEditorView: NSViewRepresentable {
             switch message.name {
             case "editorReady":
                 isReady = true
-                // Init with pending content and current appearance
-                let escaped = escapeForJS(pendingContent ?? "")
-                let mode = isDarkMode ? "dark" : "light"
-                webView?.evaluateJavaScript(
-                    "initEditor(`\(escaped)`, \(isDarkMode))",
-                    completionHandler: nil
-                )
-                lastSetContent = pendingContent ?? ""
-                pendingContent = nil
+                if let content = pendingContent {
+                    setContent(content)
+                    pendingContent = nil
+                }
 
             case "contentChange":
                 if let doc = message.body as? String {
