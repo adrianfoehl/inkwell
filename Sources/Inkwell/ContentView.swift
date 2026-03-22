@@ -107,36 +107,29 @@ struct ContentView: View {
 
             Divider()
 
-            HSplitView {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Before")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 2) {
+                    let diffs = computeDiff(
+                        old: textBeforeFormat ?? "",
+                        new: formattedPreview ?? ""
+                    )
+                    ForEach(Array(diffs.enumerated()), id: \.offset) { _, line in
+                        HStack(spacing: 8) {
+                            Text(line.prefix)
+                                .font(.system(size: 12, design: .monospaced))
+                                .foregroundStyle(line.color)
+                                .frame(width: 14, alignment: .center)
+                            Text(line.text)
+                                .font(.system(size: 13, design: .monospaced))
+                                .foregroundStyle(line.color)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                         .padding(.horizontal, 12)
-                        .padding(.top, 8)
-                    ScrollView {
-                        Text(textBeforeFormat ?? "")
-                            .font(.system(.body, design: .monospaced))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(12)
-                            .textSelection(.enabled)
+                        .padding(.vertical, 1)
+                        .background(line.background)
                     }
                 }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("After")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 12)
-                        .padding(.top, 8)
-                    ScrollView {
-                        Text(formattedPreview ?? "")
-                            .font(.system(.body, design: .monospaced))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(12)
-                            .textSelection(.enabled)
-                    }
-                }
+                .padding(.vertical, 8)
             }
         }
         .frame(minWidth: 800, minHeight: 500)
@@ -341,6 +334,65 @@ struct ContentView: View {
         NotificationCenter.default.post(name: .editorFormatCommand, object: cmd)
     }
 
+    // MARK: - Diff
+
+    private func computeDiff(old: String, new: String) -> [DiffLine] {
+        let oldLines = old.components(separatedBy: .newlines)
+        let newLines = new.components(separatedBy: .newlines)
+        var result: [DiffLine] = []
+
+        let oldSet = Set(oldLines)
+        let newSet = Set(newLines)
+
+        // Simple line-based diff: show only changed lines with context
+        var oldIdx = 0
+        var newIdx = 0
+        var contextBudget = 0
+
+        while oldIdx < oldLines.count || newIdx < newLines.count {
+            let oldLine = oldIdx < oldLines.count ? oldLines[oldIdx] : nil
+            let newLine = newIdx < newLines.count ? newLines[newIdx] : nil
+
+            if oldLine == newLine {
+                // Unchanged line — only show if near a change
+                if contextBudget > 0 {
+                    result.append(DiffLine(prefix: " ", text: oldLine ?? "", kind: .unchanged))
+                    contextBudget -= 1
+                } else if !result.isEmpty && result.last?.kind != .separator {
+                    result.append(DiffLine(prefix: "·", text: "···", kind: .separator))
+                }
+                oldIdx += 1
+                newIdx += 1
+            } else if let ol = oldLine, !newSet.contains(ol) {
+                result.append(DiffLine(prefix: "−", text: ol, kind: .removed))
+                oldIdx += 1
+                contextBudget = 2
+            } else if let nl = newLine, !oldSet.contains(nl) {
+                result.append(DiffLine(prefix: "+", text: nl, kind: .added))
+                newIdx += 1
+                contextBudget = 2
+            } else {
+                // Line exists in both but at different positions — treat as change
+                if let ol = oldLine {
+                    result.append(DiffLine(prefix: "−", text: ol, kind: .removed))
+                    oldIdx += 1
+                }
+                if let nl = newLine {
+                    result.append(DiffLine(prefix: "+", text: nl, kind: .added))
+                    newIdx += 1
+                }
+                contextBudget = 2
+            }
+        }
+
+        // Remove trailing separator
+        if result.last?.kind == .separator {
+            result.removeLast()
+        }
+
+        return result
+    }
+
     // MARK: - Front Matter Banner
 
     private var frontMatterBanner: some View {
@@ -528,4 +580,31 @@ struct HeadingItem: Identifiable {
     let id = UUID()
     let level: Int
     let title: String
+}
+
+struct DiffLine {
+    let prefix: String
+    let text: String
+    let kind: Kind
+
+    enum Kind {
+        case added, removed, unchanged, separator
+    }
+
+    var color: Color {
+        switch kind {
+        case .added: .green
+        case .removed: .red
+        case .unchanged: .primary
+        case .separator: .gray
+        }
+    }
+
+    var background: Color {
+        switch kind {
+        case .added: .green.opacity(0.1)
+        case .removed: .red.opacity(0.1)
+        default: .clear
+        }
+    }
 }
