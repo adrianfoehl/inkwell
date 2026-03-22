@@ -43,25 +43,18 @@ struct ContentView: View {
                 ToolbarItem(placement: .primaryAction) {
                     HStack(spacing: 4) {
                         Button(action: newFile) {
-                            Label("New", systemImage: "plus")
+                            Label("New", systemImage: "doc.badge.plus")
                         }
                         .help("New File (Cmd+N)")
 
                         Button(action: openFile) {
-                            Label("Open", systemImage: "folder.badge.plus")
+                            Label("Open", systemImage: "folder")
                         }
                         .help("Open File (Cmd+O)")
 
                         if hasFile {
-                            Button(action: saveFile) {
-                                Label("Save", systemImage: "checkmark.circle")
-                            }
-                            .help("Save (Cmd+S)")
-
-                            Divider()
-
                             Button(action: { showOutline.toggle() }) {
-                                Label("Outline", systemImage: "list.bullet.indent")
+                                Label("Outline", systemImage: "sidebar.trailing")
                             }
                             .help("Toggle Outline")
                         }
