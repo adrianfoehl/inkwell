@@ -13,6 +13,7 @@ struct ContentView: View {
     @State private var textBeforeFormat: String?
     @State private var formattedPreview: String?
     @State private var showFormatPreview = false
+    @State private var formatError: String?
 
     var hasFile: Bool { fileURL != nil }
 
@@ -83,6 +84,11 @@ struct ContentView: View {
             if let cmd = notification.object as? String {
                 NotificationCenter.default.post(name: .editorFormatCommand, object: cmd)
             }
+        }
+        .alert("Auto-Format", isPresented: Binding(get: { formatError != nil }, set: { if !$0 { formatError = nil } })) {
+            Button("OK") { formatError = nil }
+        } message: {
+            Text(formatError ?? "")
         }
         .sheet(isPresented: $showFormatPreview) {
             formatPreviewSheet
@@ -292,7 +298,7 @@ struct ContentView: View {
                 formattedPreview = formatted
                 showFormatPreview = true
             } catch {
-                print("AI Format error: \(error)")
+                formatError = error.localizedDescription
                 textBeforeFormat = nil
             }
             isFormatting = false
