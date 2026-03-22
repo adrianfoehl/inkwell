@@ -11,6 +11,8 @@ struct ContentView: View {
     @State private var showFrontMatter = false
     @State private var isFormatting = false
     @State private var textBeforeFormat: String?
+    @State private var formattedPreview: String?
+    @State private var showFormatPreview = false
 
     var hasFile: Bool { fileURL != nil }
 
@@ -82,6 +84,62 @@ struct ContentView: View {
                 NotificationCenter.default.post(name: .editorFormatCommand, object: cmd)
             }
         }
+        .sheet(isPresented: $showFormatPreview) {
+            formatPreviewSheet
+        }
+    }
+
+    // MARK: - Format Preview
+
+    private var formatPreviewSheet: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Auto-Format Preview")
+                    .font(.headline)
+                Spacer()
+                Button("Reject") { rejectFormat() }
+                    .keyboardShortcut(.escape)
+                Button("Accept") { acceptFormat() }
+                    .keyboardShortcut(.return)
+                    .buttonStyle(.borderedProminent)
+            }
+            .padding()
+
+            Divider()
+
+            HSplitView {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Before")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
+                        .padding(.top, 8)
+                    ScrollView {
+                        Text(textBeforeFormat ?? "")
+                            .font(.system(.body, design: .monospaced))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(12)
+                            .textSelection(.enabled)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("After")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
+                        .padding(.top, 8)
+                    ScrollView {
+                        Text(formattedPreview ?? "")
+                            .font(.system(.body, design: .monospaced))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(12)
+                            .textSelection(.enabled)
+                    }
+                }
+            }
+        }
+        .frame(minWidth: 800, minHeight: 500)
     }
 
     // MARK: - Sidebar (File Tree)
@@ -238,13 +296,28 @@ struct ContentView: View {
         Task {
             do {
                 let formatted = try await AIFormatter.format(text)
-                text = formatted
+                formattedPreview = formatted
+                showFormatPreview = true
             } catch {
                 print("AI Format error: \(error)")
                 textBeforeFormat = nil
             }
             isFormatting = false
         }
+    }
+
+    private func acceptFormat() {
+        if let formatted = formattedPreview {
+            text = formatted
+        }
+        showFormatPreview = false
+        formattedPreview = nil
+    }
+
+    private func rejectFormat() {
+        showFormatPreview = false
+        formattedPreview = nil
+        textBeforeFormat = nil
     }
 
     private func undoFormat() {
