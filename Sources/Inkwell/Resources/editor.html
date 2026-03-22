@@ -349,10 +349,10 @@
 
   <script type="module">
     import { Editor, defaultValueCtx, editorViewCtx, rootCtx } from 'https://esm.sh/@milkdown/kit@7.19.1/core';
-    import { commonmark } from 'https://esm.sh/@milkdown/kit@7.19.1/preset/commonmark';
-    import { gfm } from 'https://esm.sh/@milkdown/kit@7.19.1/preset/gfm';
+    import { commonmark, toggleStrongCommand, toggleEmphasisCommand, toggleInlineCodeCommand, wrapInHeadingCommand, wrapInBulletListCommand, wrapInOrderedListCommand, wrapInBlockquoteCommand, insertHrCommand, createCodeBlockCommand } from 'https://esm.sh/@milkdown/kit@7.19.1/preset/commonmark';
+    import { gfm, toggleStrikethroughCommand } from 'https://esm.sh/@milkdown/kit@7.19.1/preset/gfm';
     import { listener, listenerCtx } from 'https://esm.sh/@milkdown/kit@7.19.1/plugin/listener';
-    import { getMarkdown, replaceAll } from 'https://esm.sh/@milkdown/kit@7.19.1/utils';
+    import { getMarkdown, replaceAll, callCommand } from 'https://esm.sh/@milkdown/kit@7.19.1/utils';
 
     // ─── State ────────────────────────────────────────────────────────────────
 
@@ -397,6 +397,32 @@
 
     window.setAppearance = function(mode) {
       applyAppearance(mode);
+    };
+
+    window.formatCommand = function(cmd) {
+      if (!editor) return;
+      const commands = {
+        'bold': toggleStrongCommand.key,
+        'italic': toggleEmphasisCommand.key,
+        'code': toggleInlineCodeCommand.key,
+        'strikethrough': toggleStrikethroughCommand.key,
+        'h1': wrapInHeadingCommand.key,
+        'h2': wrapInHeadingCommand.key,
+        'h3': wrapInHeadingCommand.key,
+        'bulletList': wrapInBulletListCommand.key,
+        'orderedList': wrapInOrderedListCommand.key,
+        'blockquote': wrapInBlockquoteCommand.key,
+        'hr': insertHrCommand.key,
+        'codeBlock': createCodeBlockCommand.key,
+      };
+      const cmdKey = commands[cmd];
+      if (!cmdKey) return;
+      const level = cmd === 'h1' ? 1 : cmd === 'h2' ? 2 : cmd === 'h3' ? 3 : undefined;
+      if (level) {
+        editor.action(callCommand(cmdKey, level));
+      } else {
+        editor.action(callCommand(cmdKey));
+      }
     };
 
     // ─── Create Editor ────────────────────────────────────────────────────────

@@ -43,10 +43,18 @@ struct InkEditorView: NSViewRepresentable {
         var lastSetContent: String = ""
         private var isDarkMode: Bool = false
         private var appearanceObserver: NSKeyValueObservation?
+        private var formatObserver: Any?
 
         init(onTextChange: @escaping (String) -> Void) {
             self.onTextChange = onTextChange
             super.init()
+
+            formatObserver = NotificationCenter.default.addObserver(
+                forName: .editorFormatCommand, object: nil, queue: .main
+            ) { [weak self] notification in
+                guard let cmd = notification.object as? String else { return }
+                self?.webView?.evaluateJavaScript("formatCommand('\(cmd)')", completionHandler: nil)
+            }
 
             appearanceObserver = NSApp.observe(\.effectiveAppearance) { [weak self] app, _ in
                 let dark = app.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua

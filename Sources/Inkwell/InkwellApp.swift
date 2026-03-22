@@ -16,6 +16,73 @@ struct InkwellApp: App {
                 }
                 .keyboardShortcut("s", modifiers: .command)
             }
+
+            CommandMenu("Format") {
+                Section("Inline") {
+                    Button("Bold") {
+                        NotificationCenter.default.post(name: .formatCommand, object: "bold")
+                    }
+                    .keyboardShortcut("b", modifiers: .command)
+
+                    Button("Italic") {
+                        NotificationCenter.default.post(name: .formatCommand, object: "italic")
+                    }
+                    .keyboardShortcut("i", modifiers: .command)
+
+                    Button("Inline Code") {
+                        NotificationCenter.default.post(name: .formatCommand, object: "code")
+                    }
+                    .keyboardShortcut("e", modifiers: .command)
+
+                    Button("Strikethrough") {
+                        NotificationCenter.default.post(name: .formatCommand, object: "strikethrough")
+                    }
+                    .keyboardShortcut("d", modifiers: [.command, .shift])
+                }
+
+                Divider()
+
+                Section("Block") {
+                    Button("Heading 1") {
+                        NotificationCenter.default.post(name: .formatCommand, object: "h1")
+                    }
+                    .keyboardShortcut("1", modifiers: [.command, .option])
+
+                    Button("Heading 2") {
+                        NotificationCenter.default.post(name: .formatCommand, object: "h2")
+                    }
+                    .keyboardShortcut("2", modifiers: [.command, .option])
+
+                    Button("Heading 3") {
+                        NotificationCenter.default.post(name: .formatCommand, object: "h3")
+                    }
+                    .keyboardShortcut("3", modifiers: [.command, .option])
+                }
+
+                Divider()
+
+                Section("Insert") {
+                    Button("Bullet List") {
+                        NotificationCenter.default.post(name: .formatCommand, object: "bulletList")
+                    }
+
+                    Button("Numbered List") {
+                        NotificationCenter.default.post(name: .formatCommand, object: "orderedList")
+                    }
+
+                    Button("Blockquote") {
+                        NotificationCenter.default.post(name: .formatCommand, object: "blockquote")
+                    }
+
+                    Button("Code Block") {
+                        NotificationCenter.default.post(name: .formatCommand, object: "codeBlock")
+                    }
+
+                    Button("Divider") {
+                        NotificationCenter.default.post(name: .formatCommand, object: "hr")
+                    }
+                }
+            }
         }
     }
 }
@@ -28,4 +95,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
 extension Notification.Name {
     static let saveFile = Notification.Name("inkwell.saveFile")
+    static let formatCommand = Notification.Name("inkwell.formatCommand")
+    static let editorFormatCommand = Notification.Name("inkwell.editorFormatCommand")
 }

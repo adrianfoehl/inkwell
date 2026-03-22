@@ -72,6 +72,11 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .saveFile)) { _ in
             saveFile()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .formatCommand)) { notification in
+            if let cmd = notification.object as? String {
+                NotificationCenter.default.post(name: .editorFormatCommand, object: cmd)
+            }
+        }
     }
 
     // MARK: - Sidebar (File Tree)
@@ -146,9 +151,6 @@ struct ContentView: View {
             Text("~\(readTime) min read")
 
             Spacer()
-
-            Text("⌘B Bold  ⌘I Italic  # Heading  - List  ``` Code")
-                .foregroundStyle(.quaternary)
 
             if let url = fileURL {
                 Text(url.path(percentEncoded: false))
