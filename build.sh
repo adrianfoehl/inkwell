@@ -13,7 +13,7 @@ mkdir -p "$APP/Contents/Resources"
 
 cp .build/xcode/Build/Products/Release/Inkwell "$APP/Contents/MacOS/Inkwell"
 
-# Copy resource bundles (HighlightSwift etc.)
+# Copy resource bundles (editor.html etc.)
 find .build/xcode/Build/Products/Release -name "*.bundle" -maxdepth 1 -exec cp -R {} "$APP/Contents/Resources/" \;
 
 # Register with Launch Services

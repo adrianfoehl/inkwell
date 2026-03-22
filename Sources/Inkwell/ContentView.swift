@@ -1,18 +1,12 @@
 import SwiftUI
-import MarkdownUI
 
 struct ContentView: View {
     @State private var text = ""
     @State private var fileURL: URL?
-    @State private var isEditing = false
-    @State private var editBuffer = ""
     @State private var isTargeted = false
     @State private var folderURL: URL?
     @State private var folderFiles: [URL] = []
-    @State private var showSidebar = true
     @State private var showOutline = false
-    @State private var searchText = ""
-    @State private var isSearching = false
 
     var hasFile: Bool { fileURL != nil }
 
@@ -22,7 +16,9 @@ struct ContentView: View {
         } detail: {
             ZStack {
                 if hasFile {
-                    fileView
+                    InkEditorView(text: text) { newText in
+                        text = newText
+                    }
                 } else {
                     dropZone
                 }
@@ -36,19 +32,8 @@ struct ContentView: View {
                     statusBar
                 }
             }
-            .searchable(text: $searchText, isPresented: $isSearching, prompt: "Search in document")
         }
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
-                if hasFile {
-                    Picker("Mode", selection: $isEditing) {
-                        Text("Read").tag(false)
-                        Text("Edit").tag(true)
-                    }
-                    .pickerStyle(.segmented)
-                    .fixedSize()
-                }
-            }
             ToolbarItemGroup(placement: .automatic) {
                 if hasFile {
                     Button(action: { showOutline.toggle() }) {
@@ -122,9 +107,7 @@ struct ContentView: View {
                     .font(.callout)
             } else {
                 ForEach(headings) { heading in
-                    Button(action: {
-                        // Future: scroll to heading
-                    }) {
+                    Button(action: {}) {
                         Text(heading.title)
                             .font(heading.level == 1 ? .headline : heading.level == 2 ? .subheadline : .caption)
                             .padding(.leading, CGFloat((heading.level - 1) * 12))
@@ -152,11 +135,6 @@ struct ContentView: View {
             Text("~\(readTime) min read")
 
             Spacer()
-
-            if isEditing {
-                Text("Editing")
-                    .foregroundStyle(.orange)
-            }
 
             if let url = fileURL {
                 Text(url.path(percentEncoded: false))
@@ -196,60 +174,6 @@ struct ContentView: View {
                 )
                 .padding(20)
         )
-    }
-
-    // MARK: - File View
-
-    private var fileView: some View {
-        Group {
-            if isEditing {
-                editView
-            } else {
-                readView
-            }
-        }
-        .animation(.easeInOut(duration: 0.2), value: isEditing)
-    }
-
-    // MARK: - Read Mode
-
-    private var renderText: String {
-        stripFrontMatter(from: text)
-    }
-
-    private func stripFrontMatter(from text: String) -> String {
-        guard text.hasPrefix("---") else { return text }
-        let lines = text.components(separatedBy: .newlines)
-        guard let endIndex = lines.dropFirst().firstIndex(where: { $0.trimmingCharacters(in: .whitespaces) == "---" }) else {
-            return text
-        }
-        return lines.suffix(from: endIndex + 1).joined(separator: "\n").trimmingCharacters(in: .newlines)
-    }
-
-    private var readView: some View {
-        ScrollView {
-            Markdown(renderText)
-                .markdownTheme(.inkwell)
-                .textSelection(.enabled)
-                .padding(24)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .environment(\.openURL, OpenURLAction { url in
-            openSafeLink(url)
-            return .handled
-        })
-    }
-
-    // MARK: - Edit Mode
-
-    private var editView: some View {
-        TextEditor(text: $editBuffer)
-            .font(.system(.body, design: .monospaced))
-            .scrollContentBackground(.visible)
-            .padding(8)
-            .onChange(of: editBuffer) { _, newValue in
-                text = newValue
-            }
     }
 
     // MARK: - File Handling
@@ -317,9 +241,7 @@ struct ContentView: View {
     private func loadFile(_ url: URL) {
         guard let content = try? String(contentsOf: url, encoding: .utf8) else { return }
         text = content
-        editBuffer = content
         fileURL = url
-        isEditing = false
     }
 
     private func saveFile() {
@@ -344,16 +266,6 @@ struct ContentView: View {
             guard !title.isEmpty else { return nil }
             return HeadingItem(level: level, title: title)
         }
-    }
-
-    // MARK: - Link Safety
-
-    private func openSafeLink(_ url: URL) {
-        let allowedSchemes: Set<String> = ["http", "https", "mailto"]
-        guard let scheme = url.scheme?.lowercased(),
-              allowedSchemes.contains(scheme)
-        else { return }
-        NSWorkspace.shared.open(url)
     }
 }
 

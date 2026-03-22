@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inkwell Editor</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    }
+
+    body {
+      background: var(--bg, #ffffff);
+    }
+
+    #editor {
+      width: 100%;
+      height: 100%;
+    }
+
+    .ink, .ink .cm-editor {
+      height: 100% !important;
+      background: transparent !important;
+    }
+
+    .ink .cm-scroller {
+      height: 100% !important;
+      padding: 24px 40px !important;
+      overflow-y: auto !important;
+    }
+
+    .ink .cm-content {
+      font-size: 14px;
+      line-height: 1.5;
+      font-weight: 400 !important;
+    }
+
+    .ink .cm-content * {
+      font-weight: inherit !important;
+    }
+
+    .ink .cm-content .cm-strong,
+    .ink .cm-content .ink-mde-block-widget-heading {
+      font-weight: 600 !important;
+    }
+
+    .ink .cm-gutters {
+      display: none !important;
+    }
+
+    .ink .cm-activeLineGutter {
+      display: none !important;
+    }
+
+    :root {
+      --bg: #ffffff;
+      --ink-font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+      --ink-code-font-family: "SF Mono", Menlo, monospace;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1e1e1e;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="editor"></div>
+
+  <script type="module">
+    import { ink, defineOptions } from 'https://esm.sh/ink-mde@0.34.0'
+
+    let editor = null
+    let suppressNextChange = false
+
+    function initEditor(initialDoc = '', darkMode = false) {
+      document.documentElement.style.setProperty('--bg', darkMode ? '#1e1e1e' : '#ffffff')
+
+      const options = defineOptions({
+        doc: initialDoc,
+        interface: {
+          appearance: darkMode ? 'dark' : 'light',
+          toolbar: false,
+        },
+        hooks: {
+          afterUpdate: (doc) => {
+            if (suppressNextChange) {
+              suppressNextChange = false
+              return
+            }
+            if (window.webkit?.messageHandlers?.contentChange) {
+              window.webkit.messageHandlers.contentChange.postMessage(doc)
+            }
+          },
+        },
+      })
+
+      editor = ink(document.getElementById('editor'), options)
+    }
+
+    window.setContent = function(markdown) {
+      if (!editor) return
+      suppressNextChange = true
+      editor.update(markdown)
+    }
+
+    window.getContent = function() {
+      if (!editor) return ''
+      return editor.getValue()
+    }
+
+    window.setAppearance = function(mode) {
+      if (!editor) return
+      const dark = mode === 'dark'
+      document.documentElement.style.setProperty('--bg', dark ? '#1e1e1e' : '#ffffff')
+      editor.reconfigure({ interface: { appearance: mode } })
+    }
+
+    window.initEditor = initEditor
+
+    if (window.webkit?.messageHandlers?.editorReady) {
+      window.webkit.messageHandlers.editorReady.postMessage(null)
+    }
+  </script>
+</body>
+</html>
