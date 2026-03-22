@@ -6,7 +6,7 @@ cd "$(dirname "$0")"
 echo "Building Inkwell..."
 xcodebuild -scheme Inkwell -derivedDataPath .build/xcode -configuration Release -destination 'platform=macOS' build 2>&1 | tail -1
 
-APP=~/Applications/Inkwell.app
+APP=/Applications/Inkwell.app
 
 mkdir -p "$APP/Contents/MacOS"
 mkdir -p "$APP/Contents/Resources"
