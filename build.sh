@@ -16,6 +16,12 @@ cp .build/xcode/Build/Products/Release/Inkwell "$APP/Contents/MacOS/Inkwell"
 # Copy resource bundles (editor.html etc.)
 find .build/xcode/Build/Products/Release -name "*.bundle" -maxdepth 1 -exec cp -R {} "$APP/Contents/Resources/" \;
 
+# Copy app icon
+cp AppIcon.icns "$APP/Contents/Resources/AppIcon.icns" 2>/dev/null
+
+# Re-sign (required after binary replacement)
+codesign --force --sign - "$APP"
+
 # Register with Launch Services
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP"
 
