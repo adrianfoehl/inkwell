@@ -41,13 +41,20 @@ struct ContentView: View {
             }
         }
         .toolbar {
-            ToolbarItemGroup(placement: .automatic) {
-                if hasFile {
-                    Button(action: { showOutline.toggle() }) {
-                        Label("Outline", systemImage: "list.bullet.indent")
-                    }
-                    .help("Toggle Outline")
+            ToolbarItem(placement: .primaryAction) {
+                Button(action: openFile) {
+                    Label("Open File", systemImage: "doc")
                 }
+                .keyboardShortcut("o", modifiers: .command)
+                .help("Open File")
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button(action: openFolder) {
+                    Label("Open Folder", systemImage: "folder")
+                }
+                .help("Open Folder")
+            }
+            ToolbarItem(placement: .primaryAction) {
                 if hasFile {
                     Button(action: saveFile) {
                         Label("Save", systemImage: "square.and.arrow.down")
@@ -55,15 +62,14 @@ struct ContentView: View {
                     .keyboardShortcut("s", modifiers: .command)
                     .help("Save (Cmd+S)")
                 }
-                Button(action: openFolder) {
-                    Label("Open Folder", systemImage: "folder")
+            }
+            ToolbarItem(placement: .primaryAction) {
+                if hasFile {
+                    Button(action: { showOutline.toggle() }) {
+                        Label("Outline", systemImage: "list.bullet.indent")
+                    }
+                    .help("Toggle Outline")
                 }
-                .help("Open Folder")
-                Button(action: openFile) {
-                    Label("Open File", systemImage: "doc")
-                }
-                .keyboardShortcut("o", modifiers: .command)
-                .help("Open File")
             }
         }
         .navigationTitle(fileURL?.lastPathComponent ?? "Inkwell")
