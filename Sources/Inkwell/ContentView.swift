@@ -7,24 +7,40 @@ struct ContentView: View {
     @State private var isEditing = false
     @State private var editBuffer = ""
     @State private var isTargeted = false
+    @State private var folderURL: URL?
+    @State private var folderFiles: [URL] = []
+    @State private var showSidebar = true
+    @State private var showOutline = false
+    @State private var searchText = ""
+    @State private var isSearching = false
 
     var hasFile: Bool { fileURL != nil }
 
     var body: some View {
-        Group {
-            if hasFile {
-                fileView
-            } else {
-                dropZone
+        NavigationSplitView {
+            sidebar
+        } detail: {
+            ZStack {
+                if hasFile {
+                    fileView
+                } else {
+                    dropZone
+                }
             }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
-            handleDrop(providers)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
+                handleDrop(providers)
+            }
+            .overlay(alignment: .bottom) {
+                if hasFile {
+                    statusBar
+                }
+            }
+            .searchable(text: $searchText, isPresented: $isSearching, prompt: "Search in document")
         }
         .toolbar {
-            if hasFile {
-                ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .primaryAction) {
+                if hasFile {
                     Picker("Mode", selection: $isEditing) {
                         Text("Read").tag(false)
                         Text("Edit").tag(true)
@@ -33,14 +49,120 @@ struct ContentView: View {
                     .fixedSize()
                 }
             }
-            ToolbarItem(placement: .automatic) {
+            ToolbarItemGroup(placement: .automatic) {
+                if hasFile {
+                    Button(action: { showOutline.toggle() }) {
+                        Label("Outline", systemImage: "list.bullet.indent")
+                    }
+                    .help("Toggle Outline")
+                }
+                Button(action: openFolder) {
+                    Label("Open Folder", systemImage: "folder")
+                }
+                .help("Open Folder")
                 Button(action: openFile) {
-                    Label("Open", systemImage: "doc")
+                    Label("Open File", systemImage: "doc")
                 }
                 .keyboardShortcut("o", modifiers: .command)
+                .help("Open File")
             }
         }
         .navigationTitle(fileURL?.lastPathComponent ?? "Inkwell")
+        .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
+        .inspector(isPresented: $showOutline) {
+            outlinePanel
+                .inspectorColumnWidth(min: 180, ideal: 200, max: 280)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .saveFile)) { _ in
+            saveFile()
+        }
+    }
+
+    // MARK: - Sidebar (File Tree)
+
+    private var sidebar: some View {
+        Group {
+            if folderFiles.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "folder")
+                        .font(.title)
+                        .foregroundStyle(.tertiary)
+                    Text("No folder open")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                    Button("Open Folder") { openFolder() }
+                        .buttonStyle(.bordered)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                List(selection: $fileURL) {
+                    ForEach(folderFiles, id: \.self) { file in
+                        Label(file.lastPathComponent, systemImage: "doc.text")
+                            .tag(file)
+                    }
+                }
+                .onChange(of: fileURL) { _, newURL in
+                    if let url = newURL {
+                        loadFile(url)
+                    }
+                }
+                .navigationTitle(folderURL?.lastPathComponent ?? "Files")
+            }
+        }
+    }
+
+    // MARK: - Outline Panel
+
+    private var outlinePanel: some View {
+        let headings = parseHeadings(from: text)
+        return List {
+            if headings.isEmpty {
+                Text("No headings found")
+                    .foregroundStyle(.secondary)
+                    .font(.callout)
+            } else {
+                ForEach(headings) { heading in
+                    Button(action: {
+                        // Future: scroll to heading
+                    }) {
+                        Text(heading.title)
+                            .font(heading.level == 1 ? .headline : heading.level == 2 ? .subheadline : .caption)
+                            .padding(.leading, CGFloat((heading.level - 1) * 12))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .navigationTitle("Outline")
+    }
+
+    // MARK: - Status Bar
+
+    private var statusBar: some View {
+        HStack(spacing: 16) {
+            let words = text.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).count
+            let chars = text.count
+            let lines = text.components(separatedBy: .newlines).count
+            let readTime = max(1, words / 200)
+
+            Text("\(words) words")
+            Text("\(chars) chars")
+            Text("\(lines) lines")
+            Text("~\(readTime) min read")
+
+            Spacer()
+
+            if isEditing {
+                Text("Editing")
+                    .foregroundStyle(.orange)
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
+        .background(.bar)
     }
 
     // MARK: - Drop Zone
@@ -122,6 +244,39 @@ struct ContentView: View {
         loadFile(url)
     }
 
+    private func openFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        folderURL = url
+        scanFolder(url)
+    }
+
+    private func scanFolder(_ url: URL) {
+        let fm = FileManager.default
+        guard let enumerator = fm.enumerator(
+            at: url,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles]
+        ) else { return }
+
+        var files: [URL] = []
+        for case let fileURL as URL in enumerator {
+            let ext = fileURL.pathExtension.lowercased()
+            if ["md", "markdown", "mdown", "mkd"].contains(ext) {
+                files.append(fileURL)
+            }
+        }
+        folderFiles = files.sorted { $0.lastPathComponent.localizedCompare($1.lastPathComponent) == .orderedAscending }
+
+        if let first = folderFiles.first, !hasFile {
+            loadFile(first)
+        }
+    }
+
     private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
         guard let provider = providers.first else { return false }
         provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { item, _ in
@@ -152,6 +307,25 @@ struct ContentView: View {
         try? text.write(to: url, atomically: true, encoding: .utf8)
     }
 
+    // MARK: - Heading Parser
+
+    private func parseHeadings(from markdown: String) -> [HeadingItem] {
+        markdown.components(separatedBy: .newlines).compactMap { line in
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard trimmed.hasPrefix("#") else { return nil }
+
+            var level = 0
+            for char in trimmed {
+                if char == "#" { level += 1 } else { break }
+            }
+            guard level >= 1, level <= 6 else { return nil }
+
+            let title = String(trimmed.dropFirst(level)).trimmingCharacters(in: .whitespaces)
+            guard !title.isEmpty else { return nil }
+            return HeadingItem(level: level, title: title)
+        }
+    }
+
     // MARK: - Link Safety
 
     private func openSafeLink(_ url: URL) {
@@ -161,4 +335,12 @@ struct ContentView: View {
         else { return }
         NSWorkspace.shared.open(url)
     }
+}
+
+// MARK: - Models
+
+struct HeadingItem: Identifiable {
+    let id = UUID()
+    let level: Int
+    let title: String
 }
