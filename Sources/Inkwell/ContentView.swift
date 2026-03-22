@@ -48,6 +48,13 @@ struct ContentView: View {
                     }
                     .help("Toggle Outline")
                 }
+                if hasFile {
+                    Button(action: saveFile) {
+                        Label("Save", systemImage: "square.and.arrow.down")
+                    }
+                    .keyboardShortcut("s", modifiers: .command)
+                    .help("Save (Cmd+S)")
+                }
                 Button(action: openFolder) {
                     Label("Open Folder", systemImage: "folder")
                 }
