@@ -157,6 +157,13 @@ struct ContentView: View {
                 Text("Editing")
                     .foregroundStyle(.orange)
             }
+
+            if let url = fileURL {
+                Text(url.path(percentEncoded: false))
+                    .help(url.path(percentEncoded: false))
+                    .lineLimit(1)
+                    .truncationMode(.head)
+            }
         }
         .font(.caption)
         .foregroundStyle(.secondary)
