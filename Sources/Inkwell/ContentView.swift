@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var text = ""
+    @State private var frontMatter = "" // stored separately, not shown in editor
     @State private var fileURL: URL?
     @State private var isTargeted = false
     @State private var folderURL: URL?
@@ -240,13 +241,29 @@ struct ContentView: View {
 
     private func loadFile(_ url: URL) {
         guard let content = try? String(contentsOf: url, encoding: .utf8) else { return }
-        text = content
+        let (fm, body) = splitFrontMatter(content)
+        frontMatter = fm
+        text = body
         fileURL = url
     }
 
     private func saveFile() {
         guard let url = fileURL else { return }
-        try? text.write(to: url, atomically: true, encoding: .utf8)
+        let full = frontMatter.isEmpty ? text : frontMatter + "\n" + text
+        try? full.write(to: url, atomically: true, encoding: .utf8)
+    }
+
+    private func splitFrontMatter(_ content: String) -> (String, String) {
+        guard content.hasPrefix("---") else { return ("", content) }
+        let lines = content.components(separatedBy: .newlines)
+        guard let endIndex = lines.dropFirst().firstIndex(where: {
+            $0.trimmingCharacters(in: .whitespaces) == "---"
+        }) else {
+            return ("", content)
+        }
+        let fm = lines[...endIndex].joined(separator: "\n")
+        let body = lines.suffix(from: endIndex + 1).joined(separator: "\n").trimmingCharacters(in: .newlines)
+        return (fm, body)
     }
 
     // MARK: - Heading Parser
