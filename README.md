@@ -80,6 +80,10 @@ npx esbuild entry.js --bundle --format=iife --outfile=milkdown.bundle.js --minif
 cp milkdown.bundle.js ../Sources/Inkwell/Resources/
 ```
 
+## Built with AI
+
+This project was built in a single session using [Claude Code](https://claude.ai/code) (Claude Opus 4.6) — from brainstorm to shipped app. Architecture decisions, code, icon, and this README were created collaboratively with AI.
+
 ## License
 
 MIT
