@@ -25,7 +25,7 @@ A lightweight, native macOS markdown editor with WYSIWYG editing. No visible syn
 Requires Xcode 26+ and macOS 14+.
 
 ```bash
-git clone https://github.com/yourusername/inkwell.git
+git clone https://github.com/adrianfoehl/inkwell.git
 cd inkwell
 ./build.sh
 ```
