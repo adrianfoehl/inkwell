@@ -10,6 +10,7 @@ struct ContentView: View {
     @State private var showOutline = false
     @State private var showFrontMatter = false
     @State private var isFormatting = false
+    @State private var textBeforeFormat: String?
 
     var hasFile: Bool { fileURL != nil }
 
@@ -210,6 +211,21 @@ struct ContentView: View {
             .controlSize(.small)
             .disabled(isFormatting || text.isEmpty)
             .help("Format with Apple Intelligence")
+
+            if textBeforeFormat != nil {
+                Button(action: undoFormat) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.uturn.backward")
+                        Text("Undo")
+                            .font(.system(size: 11))
+                    }
+                    .frame(minHeight: 22)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .tint(.orange)
+                .help("Undo Auto-Format")
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 4)
@@ -218,14 +234,23 @@ struct ContentView: View {
 
     private func autoFormat() {
         isFormatting = true
+        textBeforeFormat = text
         Task {
             do {
                 let formatted = try await AIFormatter.format(text)
                 text = formatted
             } catch {
                 print("AI Format error: \(error)")
+                textBeforeFormat = nil
             }
             isFormatting = false
+        }
+    }
+
+    private func undoFormat() {
+        if let previous = textBeforeFormat {
+            text = previous
+            textBeforeFormat = nil
         }
     }
 
