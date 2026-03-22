@@ -9,6 +9,7 @@ struct ContentView: View {
     @State private var folderFiles: [URL] = []
     @State private var showOutline = false
     @State private var showFrontMatter = false
+    @State private var isFormatting = false
 
     var hasFile: Bool { fileURL != nil }
 
@@ -191,10 +192,41 @@ struct ContentView: View {
             formatButton(">", help: "Blockquote") { sendFormat("blockquote") }
 
             Spacer()
+
+            Button(action: autoFormat) {
+                HStack(spacing: 4) {
+                    if isFormatting {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: "wand.and.stars")
+                    }
+                    Text(isFormatting ? "Formatting..." : "Auto-Format")
+                        .font(.system(size: 11))
+                }
+                .frame(minHeight: 22)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .disabled(isFormatting || text.isEmpty)
+            .help("Format with Apple Intelligence")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 4)
         .background(.bar)
+    }
+
+    private func autoFormat() {
+        isFormatting = true
+        Task {
+            do {
+                let formatted = try await AIFormatter.format(text)
+                text = formatted
+            } catch {
+                print("AI Format error: \(error)")
+            }
+            isFormatting = false
+        }
     }
 
     private func formatButton(_ label: String, help: String, action: @escaping () -> Void) -> some View {
