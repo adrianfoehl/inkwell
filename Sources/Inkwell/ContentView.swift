@@ -147,6 +147,9 @@ struct ContentView: View {
 
             Spacer()
 
+            Text("⌘B Bold  ⌘I Italic  # Heading  - List  ``` Code")
+                .foregroundStyle(.quaternary)
+
             if let url = fileURL {
                 Text(url.path(percentEncoded: false))
                     .help(url.path(percentEncoded: false))
