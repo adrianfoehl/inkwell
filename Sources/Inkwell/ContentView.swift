@@ -8,6 +8,7 @@ struct ContentView: View {
     @State private var folderURL: URL?
     @State private var folderFiles: [URL] = []
     @State private var showOutline = false
+    @State private var showFrontMatter = false
 
     var hasFile: Bool { fileURL != nil }
 
@@ -15,13 +16,18 @@ struct ContentView: View {
         NavigationSplitView {
             sidebar
         } detail: {
-            ZStack {
-                if hasFile {
-                    InkEditorView(text: text) { newText in
-                        text = newText
+            VStack(spacing: 0) {
+                if hasFile && !frontMatter.isEmpty {
+                    frontMatterBanner
+                }
+                ZStack {
+                    if hasFile {
+                        InkEditorView(text: text) { newText in
+                            text = newText
+                        }
+                    } else {
+                        dropZone
                     }
-                } else {
-                    dropZone
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -148,6 +154,41 @@ struct ContentView: View {
         .foregroundStyle(.secondary)
         .padding(.horizontal, 16)
         .padding(.vertical, 6)
+        .background(.bar)
+    }
+
+    // MARK: - Front Matter Banner
+
+    private var frontMatterBanner: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button(action: { withAnimation(.easeInOut(duration: 0.2)) { showFrontMatter.toggle() } }) {
+                HStack(spacing: 6) {
+                    Image(systemName: showFrontMatter ? "chevron.down" : "chevron.right")
+                        .font(.caption2)
+                    Image(systemName: "doc.badge.gearshape")
+                        .font(.caption)
+                    Text("Front Matter")
+                        .font(.caption)
+                    Spacer()
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+
+            if showFrontMatter {
+                TextEditor(text: $frontMatter)
+                    .font(.system(.caption, design: .monospaced))
+                    .scrollContentBackground(.hidden)
+                    .frame(maxHeight: 150)
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, 4)
+            }
+
+            Divider()
+        }
         .background(.bar)
     }
 
