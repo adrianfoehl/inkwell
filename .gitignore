@@ -3,3 +3,5 @@
 .swiftpm/
 *.xcodeproj/xcuserdata/
 DerivedData/
+editor-bundle/node_modules/
+editor-bundle/package-lock.json

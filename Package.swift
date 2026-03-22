@@ -5,7 +5,7 @@ import PackageDescription
 let package = Package(
     name: "Inkwell",
     platforms: [
-        .macOS(.v26)
+        .macOS(.v14)
     ],
     dependencies: [],
     targets: [
@@ -14,7 +14,8 @@ let package = Package(
             dependencies: [],
             path: "Sources/Inkwell",
             resources: [
-                .copy("Resources/editor.html")
+                .copy("Resources/editor.html"),
+                .copy("Resources/milkdown.bundle.js")
             ]
         ),
     ]

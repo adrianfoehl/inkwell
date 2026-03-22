@@ -347,12 +347,12 @@
 <body>
   <div id="editor-root"></div>
 
-  <script type="module">
-    import { Editor, defaultValueCtx, editorViewCtx, rootCtx } from 'https://esm.sh/@milkdown/kit@7.19.1/core';
-    import { commonmark } from 'https://esm.sh/@milkdown/kit@7.19.1/preset/commonmark';
-    import { gfm } from 'https://esm.sh/@milkdown/kit@7.19.1/preset/gfm';
-    import { listener, listenerCtx } from 'https://esm.sh/@milkdown/kit@7.19.1/plugin/listener';
-    import { getMarkdown, replaceAll } from 'https://esm.sh/@milkdown/kit@7.19.1/utils';
+  <script src="milkdown.bundle.js"></script>
+  <script>
+    const { Editor, defaultValueCtx, editorViewCtx, rootCtx } = window.MilkdownEditor;
+    const { commonmark, gfm } = { ...window.MilkdownPresets };
+    const { listener, listenerCtx } = window.MilkdownPlugins;
+    const { getMarkdown, replaceAll } = window.MilkdownUtils;
 
     // ─── State ────────────────────────────────────────────────────────────────
 
@@ -433,34 +433,36 @@
 
     // ─── Create Editor ────────────────────────────────────────────────────────
 
-    editor = await Editor.make()
-      .config((ctx) => {
-        ctx.set(rootCtx, document.getElementById('editor-root'));
-        ctx.set(defaultValueCtx, '');
+    async function boot() {
+      editor = await Editor.make()
+        .config((ctx) => {
+          ctx.set(rootCtx, document.getElementById('editor-root'));
+          ctx.set(defaultValueCtx, '');
 
-        ctx.get(listenerCtx).markdownUpdated((ctx, markdown, prevMarkdown) => {
-          if (isSettingContent) return;
-          if (markdown === prevMarkdown) return;
-          if (window.webkit?.messageHandlers?.contentChange) {
-            window.webkit.messageHandlers.contentChange.postMessage(markdown);
-          }
-        });
-      })
-      .use(commonmark)
-      .use(gfm)
-      .use(listener)
-      .create();
+          ctx.get(listenerCtx).markdownUpdated((ctx, markdown, prevMarkdown) => {
+            if (isSettingContent) return;
+            if (markdown === prevMarkdown) return;
+            if (window.webkit?.messageHandlers?.contentChange) {
+              window.webkit.messageHandlers.contentChange.postMessage(markdown);
+            }
+          });
+        })
+        .use(commonmark)
+        .use(gfm)
+        .use(listener)
+        .create();
 
-    // Apply any content that was set before the editor was ready
-    if (window._pendingContent != null) {
-      window.setContent(window._pendingContent);
-      delete window._pendingContent;
+      if (window._pendingContent != null) {
+        window.setContent(window._pendingContent);
+        delete window._pendingContent;
+      }
+
+      if (window.webkit?.messageHandlers?.editorReady) {
+        window.webkit.messageHandlers.editorReady.postMessage(null);
+      }
     }
 
-    // Signal Swift that the editor is ready
-    if (window.webkit?.messageHandlers?.editorReady) {
-      window.webkit.messageHandlers.editorReady.postMessage(null);
-    }
+    boot();
   </script>
 </body>
 </html>

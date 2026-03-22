@@ -256,7 +256,7 @@ struct ContentView: View {
 
             Spacer()
 
-            Button(action: autoFormat) {
+            if AIFormatter.isAvailable { Button(action: autoFormat) {
                 HStack(spacing: 4) {
                     if isFormatting {
                         ProgressView()
@@ -273,6 +273,7 @@ struct ContentView: View {
             .controlSize(.small)
             .disabled(isFormatting || text.isEmpty)
             .help("Format with Apple Intelligence")
+            }
 
             if textBeforeFormat != nil {
                 Button(action: undoFormat) {

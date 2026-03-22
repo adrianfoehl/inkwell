@@ -14,10 +14,9 @@ struct InkEditorView: NSViewRepresentable {
         webView.wantsLayer = true
         webView.layer?.masksToBounds = true
 
-        // Load HTML as string so network imports (esm.sh) are allowed
-        if let url = Bundle.module.url(forResource: "editor", withExtension: "html"),
-           let html = try? String(contentsOf: url, encoding: .utf8) {
-            webView.loadHTMLString(html, baseURL: URL(string: "https://esm.sh"))
+        // Load from file URL so local JS bundle (milkdown.bundle.js) is found
+        if let url = Bundle.module.url(forResource: "editor", withExtension: "html") {
+            webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
         }
 
         context.coordinator.webView = webView

@@ -1,8 +1,21 @@
 import Foundation
+
+#if canImport(FoundationModels)
 import FoundationModels
 
 enum AIFormatter {
+    static var isAvailable: Bool {
+        if #available(macOS 26.0, *) {
+            return SystemLanguageModel.default.availability == .available
+        }
+        return false
+    }
+
     static func format(_ text: String) async throws -> String {
+        guard #available(macOS 26.0, *) else {
+            throw AIFormatterError.unavailable
+        }
+
         guard case .available = SystemLanguageModel.default.availability else {
             throw AIFormatterError.unavailable
         }
@@ -33,7 +46,6 @@ enum AIFormatter {
         let formattedWords = Set(formatted.lowercased().split(whereSeparator: { !$0.isLetter && !$0.isNumber }))
         let missingWords = originalWords.subtracting(formattedWords)
 
-        // Allow up to 5% word loss (whitespace/formatting artifacts)
         let lossRatio = Double(missingWords.count) / Double(max(originalWords.count, 1))
         if lossRatio > 0.05 {
             throw AIFormatterError.contentRemoved
@@ -43,6 +55,18 @@ enum AIFormatter {
     }
 }
 
+#else
+
+enum AIFormatter {
+    static var isAvailable: Bool { false }
+
+    static func format(_ text: String) async throws -> String {
+        throw AIFormatterError.unavailable
+    }
+}
+
+#endif
+
 enum AIFormatterError: LocalizedError {
     case unavailable
     case contentRemoved
@@ -50,7 +74,7 @@ enum AIFormatterError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unavailable:
-            "Apple Intelligence is not available. Enable it in System Settings > Apple Intelligence."
+            "Apple Intelligence is not available. Requires macOS 26 with Apple Intelligence enabled."
         case .contentRemoved:
             "AI tried to remove content. Formatting rejected — your text is unchanged."
         }
