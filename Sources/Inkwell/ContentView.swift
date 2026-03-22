@@ -206,9 +206,22 @@ struct ContentView: View {
 
     // MARK: - Read Mode
 
+    private var renderText: String {
+        stripFrontMatter(from: text)
+    }
+
+    private func stripFrontMatter(from text: String) -> String {
+        guard text.hasPrefix("---") else { return text }
+        let lines = text.components(separatedBy: .newlines)
+        guard let endIndex = lines.dropFirst().firstIndex(where: { $0.trimmingCharacters(in: .whitespaces) == "---" }) else {
+            return text
+        }
+        return lines.suffix(from: endIndex + 1).joined(separator: "\n").trimmingCharacters(in: .newlines)
+    }
+
     private var readView: some View {
         ScrollView {
-            Markdown(text)
+            Markdown(renderText)
                 .markdownTheme(.inkwell)
                 .textSelection(.enabled)
                 .padding(24)
