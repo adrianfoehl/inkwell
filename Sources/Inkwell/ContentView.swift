@@ -39,38 +39,34 @@ struct ContentView: View {
                     statusBar
                 }
             }
-        }
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button(action: openFile) {
-                    Label("Open File", systemImage: "doc")
-                }
-                .keyboardShortcut("o", modifiers: .command)
-                .help("Open File")
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Button(action: openFolder) {
-                    Label("Open Folder", systemImage: "folder")
-                }
-                .help("Open Folder")
-            }
-            ToolbarItem(placement: .primaryAction) {
-                if hasFile {
-                    Button(action: saveFile) {
-                        Label("Save", systemImage: "square.and.arrow.down")
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    HStack(spacing: 8) {
+                        Button(action: openFile) {
+                            Label("Open File", systemImage: "doc")
+                        }
+                        .help("Open File (Cmd+O)")
+
+                        Button(action: openFolder) {
+                            Label("Open Folder", systemImage: "folder")
+                        }
+                        .help("Open Folder")
+
+                        if hasFile {
+                            Button(action: saveFile) {
+                                Label("Save", systemImage: "externaldrive")
+                            }
+                            .help("Save (Cmd+S)")
+
+                            Button(action: { showOutline.toggle() }) {
+                                Label("Outline", systemImage: "list.bullet.indent")
+                            }
+                            .help("Toggle Outline")
+                        }
                     }
-                    .keyboardShortcut("s", modifiers: .command)
-                    .help("Save (Cmd+S)")
                 }
             }
-            ToolbarItem(placement: .primaryAction) {
-                if hasFile {
-                    Button(action: { showOutline.toggle() }) {
-                        Label("Outline", systemImage: "list.bullet.indent")
-                    }
-                    .help("Toggle Outline")
-                }
-            }
+            .navigationTitle(fileURL?.lastPathComponent ?? "Inkwell")
         }
         .navigationTitle(fileURL?.lastPathComponent ?? "Inkwell")
         .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
