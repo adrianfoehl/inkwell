@@ -399,9 +399,37 @@
       applyAppearance(mode);
     };
 
-    // Format commands are handled natively by Milkdown/ProseMirror
-    // via keyboard shortcuts (Cmd+B, Cmd+I, etc.)
-    window.formatCommand = function(cmd) {};
+    // Simulate keyboard shortcuts to trigger Milkdown's native commands
+    window.formatCommand = function(cmd) {
+      const editorEl = document.querySelector('.ProseMirror');
+      if (!editorEl) return;
+      editorEl.focus();
+
+      const keyMap = {
+        'bold':          { key: 'b', code: 'KeyB', metaKey: true },
+        'italic':        { key: 'i', code: 'KeyI', metaKey: true },
+        'code':          { key: 'e', code: 'KeyE', metaKey: true },
+        'strikethrough': { key: 'd', code: 'KeyD', metaKey: true, shiftKey: true },
+        'h1':            { key: '1', code: 'Digit1', metaKey: true, altKey: true },
+        'h2':            { key: '2', code: 'Digit2', metaKey: true, altKey: true },
+        'h3':            { key: '3', code: 'Digit3', metaKey: true, altKey: true },
+      };
+
+      const mapping = keyMap[cmd];
+      if (mapping) {
+        const event = new KeyboardEvent('keydown', {
+          key: mapping.key,
+          code: mapping.code,
+          metaKey: mapping.metaKey || false,
+          shiftKey: mapping.shiftKey || false,
+          altKey: mapping.altKey || false,
+          ctrlKey: false,
+          bubbles: true,
+          cancelable: true,
+        });
+        editorEl.dispatchEvent(event);
+      }
+    };
 
     // ─── Create Editor ────────────────────────────────────────────────────────
 
