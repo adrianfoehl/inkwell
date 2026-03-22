@@ -91,10 +91,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
     }
+
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard let url = urls.first else { return }
+        NotificationCenter.default.post(name: .openFileFromOS, object: url)
+    }
 }
 
 extension Notification.Name {
     static let saveFile = Notification.Name("inkwell.saveFile")
     static let formatCommand = Notification.Name("inkwell.formatCommand")
     static let editorFormatCommand = Notification.Name("inkwell.editorFormatCommand")
+    static let openFileFromOS = Notification.Name("inkwell.openFileFromOS")
 }

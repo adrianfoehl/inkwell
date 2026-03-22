@@ -85,6 +85,11 @@ struct ContentView: View {
                 NotificationCenter.default.post(name: .editorFormatCommand, object: cmd)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .openFileFromOS)) { notification in
+            if let url = notification.object as? URL {
+                loadFile(url)
+            }
+        }
         .alert("Auto-Format", isPresented: Binding(get: { formatError != nil }, set: { if !$0 { formatError = nil } })) {
             Button("OK") { formatError = nil }
         } message: {
