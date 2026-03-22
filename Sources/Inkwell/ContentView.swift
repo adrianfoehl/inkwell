@@ -41,22 +41,24 @@ struct ContentView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: 4) {
+                        Button(action: newFile) {
+                            Label("New", systemImage: "plus")
+                        }
+                        .help("New File (Cmd+N)")
+
                         Button(action: openFile) {
-                            Label("Open File", systemImage: "doc")
+                            Label("Open", systemImage: "folder.badge.plus")
                         }
                         .help("Open File (Cmd+O)")
 
-                        Button(action: openFolder) {
-                            Label("Open Folder", systemImage: "folder")
-                        }
-                        .help("Open Folder")
-
                         if hasFile {
                             Button(action: saveFile) {
-                                Label("Save", systemImage: "externaldrive")
+                                Label("Save", systemImage: "checkmark.circle")
                             }
                             .help("Save (Cmd+S)")
+
+                            Divider()
 
                             Button(action: { showOutline.toggle() }) {
                                 Label("Outline", systemImage: "list.bullet.indent")
@@ -228,6 +230,17 @@ struct ContentView: View {
     }
 
     // MARK: - File Handling
+
+    private func newFile() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.plainText]
+        panel.nameFieldStringValue = "Untitled.md"
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        let initial = "# \(url.deletingPathExtension().lastPathComponent)\n\n"
+        try? initial.write(to: url, atomically: true, encoding: .utf8)
+        loadFile(url)
+    }
 
     private func openFile() {
         let panel = NSOpenPanel()
