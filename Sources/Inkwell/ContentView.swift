@@ -8,6 +8,7 @@ struct ContentView: View {
     @State private var folderURL: URL?
     @State private var folderFiles: [URL] = []
     @State private var showOutline = false
+    @State private var showSourceMode = false
     @State private var showFrontMatter = false
     @State private var isFormatting = false
     @State private var textBeforeFormat: String?
@@ -28,14 +29,20 @@ struct ContentView: View {
                 if hasFile {
                     formatBar
                 }
-                ZStack {
-                    if hasFile {
+                if hasFile {
+                    ZStack {
                         InkEditorView(text: text) { newText in
                             text = newText
                         }
-                    } else {
-                        dropZone
+                        .opacity(showSourceMode ? 0 : 1)
+                        .allowsHitTesting(!showSourceMode)
+
+                        if showSourceMode {
+                            sourceEditor
+                        }
                     }
+                } else {
+                    dropZone
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -84,6 +91,9 @@ struct ContentView: View {
             if let cmd = notification.object as? String {
                 NotificationCenter.default.post(name: .editorFormatCommand, object: cmd)
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .toggleSourceMode)) { _ in
+            showSourceMode.toggle()
         }
         .onReceive(NotificationCenter.default.publisher(for: .openFileFromOS)) { notification in
             if let url = notification.object as? URL {
@@ -233,30 +243,71 @@ struct ContentView: View {
         .background(.bar)
     }
 
+    // MARK: - Source Editor
+
+    private var rawFileBinding: Binding<String> {
+        Binding(
+            get: {
+                frontMatter.isEmpty ? text : frontMatter + "\n\n" + text
+            },
+            set: { newValue in
+                let (fm, body) = splitFrontMatter(newValue)
+                frontMatter = fm
+                text = body
+            }
+        )
+    }
+
+    private var sourceEditor: some View {
+        TextEditor(text: rawFileBinding)
+            .font(.system(size: 14, design: .monospaced))
+            .scrollContentBackground(.hidden)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+    }
+
     // MARK: - Format Bar
 
     private var formatBar: some View {
         HStack(spacing: 2) {
-            formatButton("B", help: "Bold (⌘B)") { sendFormat("bold") }
-            formatButton("I", help: "Italic (⌘I)") { sendFormat("italic") }
-            formatButton("S", help: "Strikethrough (⇧⌘D)") { sendFormat("strikethrough") }
-            formatButton("</>", help: "Code (⌘E)") { sendFormat("code") }
+            if !showSourceMode {
+                formatButton("B", help: "Bold (⌘B)") { sendFormat("bold") }
+                formatButton("I", help: "Italic (⌘I)") { sendFormat("italic") }
+                formatButton("S", help: "Strikethrough (⇧⌘D)") { sendFormat("strikethrough") }
+                formatButton("</>", help: "Code (⌘E)") { sendFormat("code") }
 
-            Divider().frame(height: 16).padding(.horizontal, 4)
+                Divider().frame(height: 16).padding(.horizontal, 4)
 
-            formatButton("H1", help: "Heading 1 (⌥⌘1)") { sendFormat("h1") }
-            formatButton("H2", help: "Heading 2 (⌥⌘2)") { sendFormat("h2") }
-            formatButton("H3", help: "Heading 3 (⌥⌘3)") { sendFormat("h3") }
+                formatButton("H1", help: "Heading 1 (⌥⌘1)") { sendFormat("h1") }
+                formatButton("H2", help: "Heading 2 (⌥⌘2)") { sendFormat("h2") }
+                formatButton("H3", help: "Heading 3 (⌥⌘3)") { sendFormat("h3") }
 
-            Divider().frame(height: 16).padding(.horizontal, 4)
+                Divider().frame(height: 16).padding(.horizontal, 4)
 
-            formatButton("•", help: "Bullet List") { sendFormat("bulletList") }
-            formatButton("1.", help: "Numbered List") { sendFormat("orderedList") }
-            formatButton(">", help: "Blockquote") { sendFormat("blockquote") }
+                formatButton("•", help: "Bullet List") { sendFormat("bulletList") }
+                formatButton("1.", help: "Numbered List") { sendFormat("orderedList") }
+                formatButton(">", help: "Blockquote") { sendFormat("blockquote") }
+            } else {
+                Text("Markdown Source")
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.secondary)
+            }
 
             Spacer()
 
-            if AIFormatter.isAvailable { Button(action: autoFormat) {
+            Button(action: { showSourceMode.toggle() }) {
+                HStack(spacing: 4) {
+                    Image(systemName: showSourceMode ? "doc.richtext" : "chevron.left.forwardslash.chevron.right")
+                    Text(showSourceMode ? "Rich Text" : "Source")
+                        .font(.system(size: 11))
+                }
+                .frame(minHeight: 22)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .help("Toggle Source Mode (⇧⌘M)")
+
+            if !showSourceMode, AIFormatter.isAvailable { Button(action: autoFormat) {
                 HStack(spacing: 4) {
                     if isFormatting {
                         ProgressView()
@@ -275,7 +326,7 @@ struct ContentView: View {
             .help("Format with Apple Intelligence")
             }
 
-            if textBeforeFormat != nil {
+            if !showSourceMode, textBeforeFormat != nil {
                 Button(action: undoFormat) {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.uturn.backward")

@@ -17,6 +17,13 @@ struct InkwellApp: App {
                 .keyboardShortcut("s", modifiers: .command)
             }
 
+            CommandGroup(after: .textEditing) {
+                Button("Toggle Source Mode") {
+                    NotificationCenter.default.post(name: .toggleSourceMode, object: nil)
+                }
+                .keyboardShortcut("m", modifiers: [.command, .shift])
+            }
+
             CommandMenu("Format") {
                 Section("Inline") {
                     Button("Bold") {
@@ -103,4 +110,5 @@ extension Notification.Name {
     static let formatCommand = Notification.Name("inkwell.formatCommand")
     static let editorFormatCommand = Notification.Name("inkwell.editorFormatCommand")
     static let openFileFromOS = Notification.Name("inkwell.openFileFromOS")
+    static let toggleSourceMode = Notification.Name("inkwell.toggleSourceMode")
 }
