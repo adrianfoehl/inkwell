@@ -1,6 +1,34 @@
 import SwiftUI
 import WebKit
 
+/// Locates the bundled editor resources.
+///
+/// `Bundle.module` is not usable here: SwiftPM generates an accessor that only looks
+/// next to the `.app` wrapper and at the absolute build path baked in at compile time,
+/// and it calls `fatalError` when neither exists. An installed app whose source folder
+/// has moved therefore crashes on launch. We look in the places the bundle can actually
+/// live and return nil instead of trapping.
+enum EditorResources {
+    private static let bundleName = "Inkwell_Inkwell.bundle"
+
+    static func url(forResource name: String, withExtension ext: String) -> URL? {
+        let main = Bundle.main
+        let candidates = [
+            main.resourceURL?.appendingPathComponent(bundleName),  // installed .app
+            main.bundleURL.appendingPathComponent(bundleName),     // swift run / SwiftPM layout
+            main.resourceURL,                                      // resources copied flat
+        ]
+
+        for case let directory? in candidates {
+            if let bundle = Bundle(url: directory),
+               let url = bundle.url(forResource: name, withExtension: ext) {
+                return url
+            }
+        }
+        return nil
+    }
+}
+
 struct InkEditorView: NSViewRepresentable {
     let text: String
     let onTextChange: (String) -> Void
@@ -15,14 +43,24 @@ struct InkEditorView: NSViewRepresentable {
         webView.layer?.masksToBounds = true
 
         // Load from file URL so local JS bundle (milkdown.bundle.js) is found
-        if let url = Bundle.module.url(forResource: "editor", withExtension: "html") {
+        if let url = EditorResources.url(forResource: "editor", withExtension: "html") {
             webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+        } else {
+            webView.loadHTMLString(Self.missingResourcesHTML, baseURL: nil)
         }
 
         context.coordinator.webView = webView
         context.coordinator.pendingContent = text
         return webView
     }
+
+    private static let missingResourcesHTML = """
+        <html><body style="font: -apple-system-body; padding: 2rem; color: #888">
+        <h3>Editor resources missing</h3>
+        <p>Inkwell could not find <code>editor.html</code>. Reinstall the app with
+        <code>./build.sh</code>.</p>
+        </body></html>
+        """
 
     func updateNSView(_ nsView: WKWebView, context: Context) {
         if context.coordinator.lastSetContent != text {
