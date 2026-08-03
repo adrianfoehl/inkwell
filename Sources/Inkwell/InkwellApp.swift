@@ -15,6 +15,11 @@ struct InkwellApp: App {
                     NotificationCenter.default.post(name: .saveFile, object: nil)
                 }
                 .keyboardShortcut("s", modifiers: .command)
+
+                Button("Reload from Disk") {
+                    NotificationCenter.default.post(name: .reloadFile, object: nil)
+                }
+                .keyboardShortcut("r", modifiers: .command)
             }
 
             CommandGroup(after: .textEditing) {
@@ -111,4 +116,5 @@ extension Notification.Name {
     static let editorFormatCommand = Notification.Name("inkwell.editorFormatCommand")
     static let openFileFromOS = Notification.Name("inkwell.openFileFromOS")
     static let toggleSourceMode = Notification.Name("inkwell.toggleSourceMode")
+    static let reloadFile = Notification.Name("inkwell.reloadFile")
 }

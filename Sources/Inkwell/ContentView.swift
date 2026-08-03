@@ -16,13 +16,28 @@ struct ContentView: View {
     @State private var showFormatPreview = false
     @State private var formatError: String?
 
+    // Disk state: what we last read from / wrote to the file, used to spot
+    // external edits and to tell whether reloading would throw work away.
+    @State private var loadedFrontMatter = ""
+    @State private var loadedBody = ""
+    @State private var lastModDate: Date?
+    @State private var fileChangedOnDisk = false
+    @State private var showDiscardConfirm = false
+
     var hasFile: Bool { fileURL != nil }
+
+    var hasUnsavedEdits: Bool {
+        text != loadedBody || frontMatter != loadedFrontMatter
+    }
 
     var body: some View {
         NavigationSplitView {
             sidebar
         } detail: {
             VStack(spacing: 0) {
+                if hasFile && fileChangedOnDisk {
+                    diskChangeBanner
+                }
                 if hasFile && !frontMatter.isEmpty {
                     frontMatterBanner
                 }
@@ -68,6 +83,12 @@ struct ContentView: View {
                         .help("Open File (Cmd+O)")
 
                         if hasFile {
+                            Button(action: reloadFile) {
+                                Label("Reload", systemImage: "arrow.clockwise")
+                            }
+                            .tint(fileChangedOnDisk ? .orange : nil)
+                            .help("Reload from Disk (Cmd+R)")
+
                             Button(action: { showOutline.toggle() }) {
                                 Label("Outline", systemImage: "sidebar.trailing")
                             }
@@ -99,6 +120,29 @@ struct ContentView: View {
             if let url = notification.object as? URL {
                 loadFile(url)
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .reloadFile)) { _ in
+            reloadFile()
+        }
+        .task {
+            // A Timer.publish stored in the view struct would be recreated on every
+            // body evaluation; .task starts exactly once per view lifetime.
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1.5))
+                checkForExternalChange()
+            }
+        }
+        .confirmationDialog(
+            "Reload from disk?",
+            isPresented: $showDiscardConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Discard Changes and Reload", role: .destructive) {
+                if let url = fileURL { loadFile(url) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This document has unsaved changes. Reloading replaces them with the version on disk.")
         }
         .alert("Auto-Format", isPresented: Binding(get: { formatError != nil }, set: { if !$0 { formatError = nil } })) {
             Button("OK") { formatError = nil }
@@ -467,6 +511,42 @@ struct ContentView: View {
         return result.reversed()
     }
 
+    // MARK: - Disk Change Banner
+
+    private var diskChangeBanner: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                Text(hasUnsavedEdits
+                     ? "This file changed on disk. You also have unsaved changes."
+                     : "This file changed on disk.")
+                    .font(.caption)
+                Spacer()
+                Button("Reload") { reloadFile() }
+                    .controlSize(.small)
+                Button {
+                    // Accept the disk version as "seen", otherwise the next poll
+                    // brings the banner straight back.
+                    if let url = fileURL { lastModDate = modificationDate(of: url) }
+                    fileChangedOnDisk = false
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.caption2)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help("Dismiss")
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+
+            Divider()
+        }
+        .background(Color.orange.opacity(0.12))
+    }
+
     // MARK: - Front Matter Banner
 
     private var frontMatterBanner: some View {
@@ -607,12 +687,55 @@ struct ContentView: View {
         frontMatter = fm
         text = body
         fileURL = url
+        markSynced(with: url)
+    }
+
+    /// Re-reads the current file. Asks first if that would discard unsaved edits.
+    private func reloadFile() {
+        guard let url = fileURL else { return }
+        if hasUnsavedEdits {
+            showDiscardConfirm = true
+        } else {
+            loadFile(url)
+        }
+    }
+
+    /// Records the state we are in sync with, so later edits and external writes
+    /// can both be detected.
+    private func markSynced(with url: URL) {
+        loadedFrontMatter = frontMatter
+        loadedBody = text
+        lastModDate = modificationDate(of: url)
+        fileChangedOnDisk = false
+    }
+
+    private func modificationDate(of url: URL) -> Date? {
+        try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+    }
+
+    private func checkForExternalChange() {
+        guard let url = fileURL, !fileChangedOnDisk else { return }
+        guard let current = modificationDate(of: url) else { return }
+        guard let known = lastModDate else {
+            lastModDate = current
+            return
+        }
+        guard current != known else { return }
+
+        // No local edits pending: pull the new version in silently, that is what
+        // the user expects when a background process rewrites the file.
+        if hasUnsavedEdits {
+            fileChangedOnDisk = true
+        } else {
+            loadFile(url)
+        }
     }
 
     private func saveFile() {
         guard let url = fileURL else { return }
         let full = frontMatter.isEmpty ? text : frontMatter + "\n" + text
         try? full.write(to: url, atomically: true, encoding: .utf8)
+        markSynced(with: url)
     }
 
     private func splitFrontMatter(_ content: String) -> (String, String) {
