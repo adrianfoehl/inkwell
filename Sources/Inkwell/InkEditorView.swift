@@ -29,8 +29,42 @@ enum EditorResources {
     }
 }
 
+/// Delivers formatting commands to exactly one editor.
+///
+/// A NotificationCenter broadcast would reach the editor in every open window, so
+/// a single Cmd+B would toggle bold once per window (with two windows: on, then
+/// straight back off). Each ContentView owns one bridge and talks only to its own
+/// WebView through it.
+@MainActor
+final class EditorBridge: ObservableObject {
+    fileprivate var perform: ((String) -> Void)?
+
+    func send(_ command: String) {
+        perform?(command)
+    }
+}
+
+/// Reports the NSWindow a SwiftUI view ended up in.
+///
+/// Menu commands arrive as app-wide notifications, so each window needs to know
+/// whether it is the one the user is actually looking at.
+struct WindowAccessor: NSViewRepresentable {
+    let onWindow: (NSWindow?) -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        DispatchQueue.main.async { onWindow(view.window) }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async { onWindow(nsView.window) }
+    }
+}
+
 struct InkEditorView: NSViewRepresentable {
     let text: String
+    let bridge: EditorBridge
     let onTextChange: (String) -> Void
 
     func makeNSView(context: Context) -> WKWebView {
@@ -51,6 +85,9 @@ struct InkEditorView: NSViewRepresentable {
 
         context.coordinator.webView = webView
         context.coordinator.pendingContent = text
+        bridge.perform = { [weak webView] command in
+            webView?.evaluateJavaScript("formatCommand('\(command)')", completionHandler: nil)
+        }
         return webView
     }
 
@@ -80,18 +117,10 @@ struct InkEditorView: NSViewRepresentable {
         var lastSetContent: String = ""
         private var isDarkMode: Bool = false
         private var appearanceObserver: NSKeyValueObservation?
-        private var formatObserver: Any?
 
         init(onTextChange: @escaping (String) -> Void) {
             self.onTextChange = onTextChange
             super.init()
-
-            formatObserver = NotificationCenter.default.addObserver(
-                forName: .editorFormatCommand, object: nil, queue: .main
-            ) { [weak self] notification in
-                guard let cmd = notification.object as? String else { return }
-                self?.webView?.evaluateJavaScript("formatCommand('\(cmd)')", completionHandler: nil)
-            }
 
             appearanceObserver = NSApp.observe(\.effectiveAppearance) { [weak self] app, _ in
                 let dark = app.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua

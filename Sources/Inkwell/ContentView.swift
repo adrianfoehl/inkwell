@@ -24,10 +24,24 @@ struct ContentView: View {
     @State private var fileChangedOnDisk = false
     @State private var showDiscardConfirm = false
 
+    /// The window this view lives in, plus the per-window command channel to its
+    /// editor. Both exist so app-wide menu commands act on one window only.
+    @State private var window: NSWindow?
+    @StateObject private var editorBridge = EditorBridge()
+
     var hasFile: Bool { fileURL != nil }
 
     var hasUnsavedEdits: Bool {
         text != loadedBody || frontMatter != loadedFrontMatter
+    }
+
+    /// Whether this window is the one the user is working in. Menu commands are
+    /// posted app-wide, so every window gets them and only this one may act.
+    /// Before the window reference arrives we accept commands, otherwise the very
+    /// first Cmd+S after launch would be swallowed.
+    var isActiveWindow: Bool {
+        guard let window else { return true }
+        return NSApp.commandTargetWindow === window
     }
 
     var body: some View {
@@ -46,7 +60,7 @@ struct ContentView: View {
                 }
                 if hasFile {
                     ZStack {
-                        InkEditorView(text: text) { newText in
+                        InkEditorView(text: text, bridge: editorBridge) { newText in
                             text = newText
                         }
                         .opacity(showSourceMode ? 0 : 1)
@@ -105,23 +119,30 @@ struct ContentView: View {
             outlinePanel
                 .inspectorColumnWidth(min: 180, ideal: 200, max: 280)
         }
+        .background(WindowAccessor { window = $0 })
         .onReceive(NotificationCenter.default.publisher(for: .saveFile)) { _ in
+            guard isActiveWindow else { return }
             saveFile()
         }
         .onReceive(NotificationCenter.default.publisher(for: .formatCommand)) { notification in
-            if let cmd = notification.object as? String {
-                NotificationCenter.default.post(name: .editorFormatCommand, object: cmd)
-            }
+            guard isActiveWindow, let cmd = notification.object as? String else { return }
+            editorBridge.send(cmd)
         }
         .onReceive(NotificationCenter.default.publisher(for: .toggleSourceMode)) { _ in
+            guard isActiveWindow else { return }
             showSourceMode.toggle()
         }
         .onReceive(NotificationCenter.default.publisher(for: .openFileFromOS)) { notification in
-            if let url = notification.object as? URL {
-                loadFile(url)
-            }
+            // The AppDelegate picks one target window, so the file opens once
+            // instead of replacing the contents of every window at the same time.
+            guard let request = notification.object as? OpenFileRequest,
+                  let window, request.window === window, !request.isHandled
+            else { return }
+            request.isHandled = true
+            loadFile(request.url)
         }
         .onReceive(NotificationCenter.default.publisher(for: .reloadFile)) { _ in
+            guard isActiveWindow else { return }
             reloadFile()
         }
         .task {
@@ -438,7 +459,7 @@ struct ContentView: View {
     }
 
     private func sendFormat(_ cmd: String) {
-        NotificationCenter.default.post(name: .editorFormatCommand, object: cmd)
+        editorBridge.send(cmd)
     }
 
     // MARK: - Diff
