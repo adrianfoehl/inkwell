@@ -114,7 +114,9 @@ struct ContentView: View {
                         // unsaved document never looks like it has nowhere to go.
                         if hasDocument && (isUntitled || hasUnsavedEdits) {
                             Button(action: saveFile) {
-                                Label("Save", systemImage: "square.and.arrow.down")
+                                // A drive, not an arrow: the arrow symbols are the
+                                // ones macOS uses for downloading and sharing.
+                                Label("Save", systemImage: "internaldrive")
                             }
                             .help(isUntitled
                                   ? "Save (Cmd+S), asks where to put the file"
