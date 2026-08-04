@@ -1,8 +1,8 @@
 # Inkwell
 
-A lightweight markdown editor for macOS that renders your text as you type. No split view, no syntax clutter — just open a `.md` file and start reading or writing.
+A lightweight markdown editor for macOS that renders your text as you type. No split view, no syntax clutter, just open a `.md` file and start reading or writing.
 
-![macOS](https://img.shields.io/badge/macOS-14.0%2B-blue) ![Swift](https://img.shields.io/badge/Swift-6.2-orange) ![License](https://img.shields.io/badge/License-MIT-green)
+![Version](https://img.shields.io/badge/Version-0.2.0-blue) ![macOS](https://img.shields.io/badge/macOS-14.0%2B-lightgrey) ![Swift](https://img.shields.io/badge/Swift-6.2-orange) ![License](https://img.shields.io/badge/License-MIT-green)
 
 ## Why Inkwell?
 
@@ -10,17 +10,20 @@ If you work with AI agents, static sites, or documentation, you end up with doze
 
 ## Features
 
-- **WYSIWYG editing** — Headings, bold, italic, code, lists rendered inline (powered by Milkdown/ProseMirror)
-- **Drag & Drop** — Drop `.md` files onto the window to open
-- **Folder sidebar** — Browse all markdown files in a directory
-- **Outline panel** — Navigate by headings
-- **Format bar** — Bold, Italic, Code, Headings, Lists with one click
-- **Format menu** — Full keyboard shortcuts (Cmd+B, Cmd+I, etc.)
-- **Status bar** — Word count, characters, lines, reading time, file path
-- **Front matter** — YAML front matter collapsed into a toggleable banner
-- **Dark mode** — Follows system appearance
-- **Auto-Format with Apple Intelligence** — On-device AI formatting (macOS 26+, optional)
-- **Offline** — All dependencies bundled, no internet required
+- **WYSIWYG editing**: Headings, bold, italic, code, lists rendered inline (powered by Milkdown/ProseMirror)
+- **Drag & Drop**: Drop `.md` files onto the window to open
+- **Folder sidebar**: Browse all markdown files in a directory
+- **Outline panel**: Navigate by headings
+- **Format bar**: Bold, Italic, Code, Headings, Lists with one click
+- **Format menu**: Full keyboard shortcuts (Cmd+B, Cmd+I, etc.)
+- **Status bar**: Word count, characters, lines, reading time, file path
+- **Write first, name later**: New File opens an empty document; the first save asks where it belongs and proposes a name from your first line
+- **Reload on change**: A file rewritten by another program is picked up automatically; with unsaved edits a banner asks first
+- **Clean paste from a terminal**: Console output loses its `▎` gutter and the terminal's hard wrapping, ready to drop into an email
+- **Front matter**: YAML front matter collapsed into a toggleable banner
+- **Dark mode**: Follows system appearance
+- **Auto-Format with Apple Intelligence**: On-device AI formatting (macOS 26+, optional)
+- **Offline**: All dependencies bundled, no internet required
 
 ## Install
 
@@ -51,26 +54,31 @@ Right-click any `.md` file → Get Info → Open With → Inkwell → Change All
 | Heading 1 | Option+Cmd+1 |
 | Heading 2 | Option+Cmd+2 |
 | Heading 3 | Option+Cmd+3 |
+| New File | Cmd+N |
+| New Window | Shift+Cmd+N |
 | Open File | Cmd+O |
 | Save | Cmd+S |
-| New File | Menu: File > New |
+| Reload from Disk | Cmd+R |
+| Toggle Source Mode | Shift+Cmd+M |
 
 ## Architecture
 
 - **SwiftUI** shell (sidebar, toolbar, status bar)
 - **WKWebView** with [Milkdown](https://milkdown.dev/) (ProseMirror-based WYSIWYG editor)
 - **Apple Foundation Models** for on-device AI formatting (optional, macOS 26+)
-- JS dependencies bundled via esbuild — no CDN, no network required
+- JS dependencies bundled via esbuild, no CDN, no network required
 
 ```
+Info.plist               : Bundle metadata template; build.sh fills in the version
+build.sh                 : Builds, installs to /Applications, sets VERSION
 Sources/Inkwell/
-  InkwellApp.swift       — App entry point, menu commands
-  ContentView.swift      — Main layout, sidebar, toolbar, format bar
-  InkEditorView.swift    — WKWebView wrapper with Swift/JS bridge
-  AIFormatter.swift      — Apple Intelligence integration (optional)
+  InkwellApp.swift     : App entry point, menu commands
+  ContentView.swift    : Main layout, sidebar, toolbar, format bar
+  InkEditorView.swift  : WKWebView wrapper with Swift/JS bridge
+  AIFormatter.swift    : Apple Intelligence integration (optional)
   Resources/
-    editor.html          — Milkdown editor UI
-    milkdown.bundle.js   — Bundled Milkdown + ProseMirror (434KB)
+    editor.html        : Milkdown editor UI
+    milkdown.bundle.js : Bundled Milkdown + ProseMirror (434KB)
 ```
 
 ## Rebuilding the JS bundle
@@ -86,7 +94,13 @@ cp milkdown.bundle.js ../Sources/Inkwell/Resources/
 
 ## Built with AI
 
-This project was built in a single session using [Claude Code](https://claude.ai/code) (Claude Opus 4.6) — from brainstorm to shipped app. Architecture decisions, code, icon, and this README were created collaboratively with AI.
+Version 0.1 was built in a single session using [Claude Code](https://claude.ai/code) (Claude Opus 4.6), from brainstorm to shipped app. Architecture decisions, code, icon, and this README were created collaboratively with AI, and later versions were built the same way.
+
+## Versioning
+
+The version lives in one place: `VERSION` at the top of `build.sh`. The build
+substitutes it into `Info.plist`, so About Inkwell and the app bundle agree with
+it. Changes are listed in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

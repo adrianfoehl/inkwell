@@ -4,7 +4,11 @@ shopt -s nullglob
 
 cd "$(dirname "$0")"
 
-echo "Building Inkwell..."
+# The one place the version is written. It lands in the app bundle and is what
+# About Inkwell shows; keep CHANGELOG.md and the git tag in step with it.
+VERSION="0.2.0"
+
+echo "Building Inkwell $VERSION..."
 swift build -c release 2>&1 | tail -1
 
 APP=/Applications/Inkwell.app
@@ -25,6 +29,10 @@ done
 # Copy app icon
 cp AppIcon.icns "$APP/Contents/Resources/AppIcon.icns" 2>/dev/null
 
+# Bundle metadata: without it the app has no identity, no icon and no .md
+# association, so a fresh clone used to build an app macOS would not open files with.
+sed "s/__VERSION__/$VERSION/g" Info.plist > "$APP/Contents/Info.plist"
+
 # Re-sign (required after binary replacement)
 codesign --force --sign - "$APP"
 
@@ -34,5 +42,7 @@ codesign --force --sign - "$APP"
 # Fail loudly rather than shipping an app that can't load its editor
 test -f "$APP/Contents/Resources/Inkwell_Inkwell.bundle/editor.html" \
     || { echo "ERROR: editor.html missing from $APP"; exit 1; }
+test -f "$APP/Contents/Info.plist" \
+    || { echo "ERROR: Info.plist missing from $APP"; exit 1; }
 
-echo "Done. Run: open $APP"
+echo "Done ($VERSION). Run: open $APP"
