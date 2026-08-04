@@ -2,14 +2,31 @@ import SwiftUI
 
 @main
 struct InkwellApp: App {
+    static let mainWindowID = "editor"
+
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
+    @Environment(\.openWindow) private var openWindow
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: Self.mainWindowID) {
             ContentView()
         }
         .defaultSize(width: 900, height: 700)
         .commands {
+            // The default New Window keeps Cmd+N, which the app's own New File
+            // needs; New Window moves to Shift+Cmd+N.
+            CommandGroup(replacing: .newItem) {
+                Button("New File") {
+                    NotificationCenter.default.post(name: .newFile, object: nil)
+                }
+                .keyboardShortcut("n", modifiers: .command)
+
+                Button("New Window") {
+                    openWindow(id: Self.mainWindowID)
+                }
+                .keyboardShortcut("n", modifiers: [.command, .shift])
+            }
+
             CommandGroup(after: .saveItem) {
                 Button("Save") {
                     NotificationCenter.default.post(name: .saveFile, object: nil)
@@ -172,4 +189,5 @@ extension Notification.Name {
     static let openFileFromOS = Notification.Name("inkwell.openFileFromOS")
     static let toggleSourceMode = Notification.Name("inkwell.toggleSourceMode")
     static let reloadFile = Notification.Name("inkwell.reloadFile")
+    static let newFile = Notification.Name("inkwell.newFile")
 }

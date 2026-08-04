@@ -23,16 +23,30 @@ struct ContentView: View {
     @State private var lastModDate: Date?
     @State private var fileChangedOnDisk = false
     @State private var showDiscardConfirm = false
+    @State private var showDiscardNewConfirm = false
+
+    /// A document that exists but has no file yet: it is only written to disk on
+    /// the first save.
+    @State private var isUntitled = false
 
     /// The window this view lives in, plus the per-window command channel to its
     /// editor. Both exist so app-wide menu commands act on one window only.
     @State private var window: NSWindow?
     @StateObject private var editorBridge = EditorBridge()
 
+    /// A file exists on disk. Gates everything that needs a path.
     var hasFile: Bool { fileURL != nil }
+
+    /// Something is being edited, saved or not. Gates the editor itself.
+    var hasDocument: Bool { fileURL != nil || isUntitled }
 
     var hasUnsavedEdits: Bool {
         text != loadedBody || frontMatter != loadedFrontMatter
+    }
+
+    var documentTitle: String {
+        if let fileURL { return fileURL.lastPathComponent }
+        return isUntitled ? "Untitled" : "Inkwell"
     }
 
     /// Whether this window is the one the user is working in. Menu commands are
@@ -52,13 +66,13 @@ struct ContentView: View {
                 if hasFile && fileChangedOnDisk {
                     diskChangeBanner
                 }
-                if hasFile && !frontMatter.isEmpty {
+                if hasDocument && !frontMatter.isEmpty {
                     frontMatterBanner
                 }
-                if hasFile {
+                if hasDocument {
                     formatBar
                 }
-                if hasFile {
+                if hasDocument {
                     ZStack {
                         InkEditorView(text: text, bridge: editorBridge) { newText in
                             text = newText
@@ -79,7 +93,7 @@ struct ContentView: View {
                 handleDrop(providers)
             }
             .overlay(alignment: .bottom) {
-                if hasFile {
+                if hasDocument {
                     statusBar
                 }
             }
@@ -96,13 +110,26 @@ struct ContentView: View {
                         }
                         .help("Open File (Cmd+O)")
 
+                        // Visible as long as there is something to save, so an
+                        // unsaved document never looks like it has nowhere to go.
+                        if hasDocument && (isUntitled || hasUnsavedEdits) {
+                            Button(action: saveFile) {
+                                Label("Save", systemImage: "square.and.arrow.down")
+                            }
+                            .help(isUntitled
+                                  ? "Save (Cmd+S), asks where to put the file"
+                                  : "Save (Cmd+S)")
+                        }
+
                         if hasFile {
                             Button(action: reloadFile) {
                                 Label("Reload", systemImage: "arrow.clockwise")
                             }
                             .tint(fileChangedOnDisk ? .orange : nil)
                             .help("Reload from Disk (Cmd+R)")
+                        }
 
+                        if hasDocument {
                             Button(action: { showOutline.toggle() }) {
                                 Label("Outline", systemImage: "sidebar.trailing")
                             }
@@ -111,9 +138,9 @@ struct ContentView: View {
                     }
                 }
             }
-            .navigationTitle(fileURL?.lastPathComponent ?? "Inkwell")
+            .navigationTitle(documentTitle)
         }
-        .navigationTitle(fileURL?.lastPathComponent ?? "Inkwell")
+        .navigationTitle(documentTitle)
         .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
         .inspector(isPresented: $showOutline) {
             outlinePanel
@@ -145,6 +172,10 @@ struct ContentView: View {
             guard isActiveWindow else { return }
             reloadFile()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .newFile)) { _ in
+            guard isActiveWindow else { return }
+            newFile()
+        }
         .task {
             // A Timer.publish stored in the view struct would be recreated on every
             // body evaluation; .task starts exactly once per view lifetime.
@@ -164,6 +195,16 @@ struct ContentView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This document has unsaved changes. Reloading replaces them with the version on disk.")
+        }
+        .confirmationDialog(
+            "Start a new document?",
+            isPresented: $showDiscardNewConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Discard Changes", role: .destructive) { startNewDocument() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("The current document has unsaved changes that would be lost.")
         }
         .alert("Auto-Format", isPresented: Binding(get: { formatError != nil }, set: { if !$0 { formatError = nil } })) {
             Button("OK") { formatError = nil }
@@ -299,6 +340,8 @@ struct ContentView: View {
                     .help(url.path(percentEncoded: false))
                     .lineLimit(1)
                     .truncationMode(.head)
+            } else {
+                Text("Not saved yet, Cmd+S picks a place")
             }
         }
         .font(.caption)
@@ -613,7 +656,7 @@ struct ContentView: View {
             Text("Drop a .md file here")
                 .font(.title3)
                 .foregroundStyle(.secondary)
-            Text("or press Cmd+O to open")
+            Text("Cmd+O to open, Cmd+N to start writing")
                 .font(.callout)
                 .foregroundStyle(.tertiary)
         }
@@ -631,15 +674,26 @@ struct ContentView: View {
 
     // MARK: - File Handling
 
+    /// Opens an empty document straight away. Where it lives on disk is decided
+    /// when saving, so writing can start before a name and folder exist.
     private func newFile() {
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.plainText]
-        panel.nameFieldStringValue = "Untitled.md"
+        if hasUnsavedEdits && hasDocument {
+            showDiscardNewConfirm = true
+        } else {
+            startNewDocument()
+        }
+    }
 
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        let initial = "# \(url.deletingPathExtension().lastPathComponent)\n\n"
-        try? initial.write(to: url, atomically: true, encoding: .utf8)
-        loadFile(url)
+    private func startNewDocument() {
+        frontMatter = ""
+        text = ""
+        loadedFrontMatter = ""
+        loadedBody = ""
+        fileURL = nil
+        lastModDate = nil
+        fileChangedOnDisk = false
+        textBeforeFormat = nil
+        isUntitled = true
     }
 
     private func openFile() {
@@ -680,7 +734,7 @@ struct ContentView: View {
         }
         folderFiles = files.sorted { $0.lastPathComponent.localizedCompare($1.lastPathComponent) == .orderedAscending }
 
-        if let first = folderFiles.first, !hasFile {
+        if let first = folderFiles.first, !hasDocument {
             loadFile(first)
         }
     }
@@ -753,10 +807,64 @@ struct ContentView: View {
     }
 
     private func saveFile() {
-        guard let url = fileURL else { return }
+        guard let url = fileURL else {
+            saveAs()
+            return
+        }
+        write(to: url)
+    }
+
+    /// Asks where an untitled document should live, then writes it there.
+    ///
+    /// Attached to the window as a sheet where possible: a modal panel would block
+    /// every other window of the app while it is up.
+    private func saveAs() {
+        guard hasDocument else { return }
+
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.plainText]
+        panel.nameFieldStringValue = suggestedFileName()
+
+        let store: (NSApplication.ModalResponse) -> Void = { response in
+            guard response == .OK, let url = panel.url else { return }
+            write(to: url)
+            fileURL = url
+            isUntitled = false
+        }
+
+        if let window {
+            panel.beginSheetModal(for: window, completionHandler: store)
+        } else {
+            store(panel.runModal())
+        }
+    }
+
+    private func write(to url: URL) {
         let full = frontMatter.isEmpty ? text : frontMatter + "\n" + text
         try? full.write(to: url, atomically: true, encoding: .utf8)
         markSynced(with: url)
+    }
+
+    /// Proposes a name from the first heading or first line, so saving a pasted
+    /// note does not start with an empty name field.
+    private func suggestedFileName() -> String {
+        let firstLine = text
+            .components(separatedBy: .newlines)
+            .first { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+
+        let cleaned = (firstLine ?? "")
+            .trimmingCharacters(in: .whitespaces)
+            .drop { $0 == "#" }
+            .trimmingCharacters(in: .whitespaces)
+            .replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: ":", with: "-")
+            .prefix(40)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            // A salutation like "Hallo Simon," would otherwise end up as a file
+            // name ending in a comma.
+            .trimmingCharacters(in: CharacterSet(charactersIn: ",.;-!? "))
+
+        return cleaned.isEmpty ? "Untitled.md" : "\(cleaned).md"
     }
 
     private func splitFrontMatter(_ content: String) -> (String, String) {
