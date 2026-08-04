@@ -110,33 +110,31 @@ struct ContentView: View {
                         }
                         .help("Open File (Cmd+O)")
 
-                        // Visible as long as there is something to save, so an
-                        // unsaved document never looks like it has nowhere to go.
-                        if hasDocument && (isUntitled || hasUnsavedEdits) {
-                            Button(action: saveFile) {
-                                // A drive, not an arrow: the arrow symbols are the
-                                // ones macOS uses for downloading and sharing.
-                                Label("Save", systemImage: "internaldrive")
-                            }
-                            .help(isUntitled
-                                  ? "Save (Cmd+S), asks where to put the file"
-                                  : "Save (Cmd+S)")
+                        // Buttons stay in place and grey out instead of appearing
+                        // and disappearing: a toolbar that reflows moves every
+                        // other button out from under the pointer.
+                        Button(action: saveFile) {
+                            // A drive, not an arrow: the arrow symbols are the
+                            // ones macOS uses for downloading and sharing.
+                            Label("Save", systemImage: "internaldrive")
                         }
+                        .disabled(!hasDocument || !(isUntitled || hasUnsavedEdits))
+                        .help(isUntitled
+                              ? "Save (Cmd+S), asks where to put the file"
+                              : "Save (Cmd+S)")
 
-                        if hasFile {
-                            Button(action: reloadFile) {
-                                Label("Reload", systemImage: "arrow.clockwise")
-                            }
-                            .tint(fileChangedOnDisk ? .orange : nil)
-                            .help("Reload from Disk (Cmd+R)")
+                        Button(action: reloadFile) {
+                            Label("Reload", systemImage: "arrow.clockwise")
                         }
+                        .disabled(!hasFile)
+                        .tint(fileChangedOnDisk ? .orange : nil)
+                        .help("Reload from Disk (Cmd+R)")
 
-                        if hasDocument {
-                            Button(action: { showOutline.toggle() }) {
-                                Label("Outline", systemImage: "sidebar.trailing")
-                            }
-                            .help("Toggle Outline")
+                        Button(action: { showOutline.toggle() }) {
+                            Label("Outline", systemImage: "sidebar.trailing")
                         }
+                        .disabled(!hasDocument)
+                        .help("Toggle Outline")
                     }
                 }
             }
