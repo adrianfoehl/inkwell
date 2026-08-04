@@ -373,6 +373,116 @@
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     applyAppearance(prefersDark ? 'dark' : 'light');
 
+    // ─── Console text cleanup ─────────────────────────────────────────────────
+    // Text copied out of a terminal carries the quote gutter the console draws
+    // ("  ▎ ") and the terminal's own line wrapping. Both have to go before the
+    // text is worth pasting into an email.
+    // TESTABLE REGION START (extracted verbatim by the test harness)
+    const GUTTER_CHARS = '▎▏▍▌▋▊▉█│┃┆┇┊┋╎╏║▐';
+    const GUTTER_LINE = new RegExp('^[ \\t]*[' + GUTTER_CHARS + '][ \\t]?');
+    const GUTTER_ONLY = new RegExp('^[ \\t]*[' + GUTTER_CHARS + '][ \\t]*$');
+
+    // Lines that start a markdown block are never a continuation of the line above.
+    const BLOCK_START = /^\s*([-*+]\s|\d+[.)]\s|#{1,6}\s|>|```|~~~|\||!\[|\[)/;
+
+    function stripGutter(raw) {
+      const lines = raw.replace(/\r\n?/g, '\n').split('\n');
+      const nonEmpty = lines.filter(l => l.trim() !== '');
+      const guttered = nonEmpty.filter(l => GUTTER_LINE.test(l));
+
+      // Only touch text that really looks like console output, so ordinary
+      // pasting stays untouched.
+      if (guttered.length < 2 || guttered.length < nonEmpty.length * 0.6) return null;
+
+      const stripped = lines.map(line => {
+        if (GUTTER_ONLY.test(line)) return '';
+        return line.replace(GUTTER_LINE, '').replace(/\s+$/, '');
+      });
+
+      // Remove indentation shared by every remaining line.
+      const indents = stripped.filter(l => l !== '').map(l => l.match(/^[ \t]*/)[0].length);
+      const shared = indents.length ? Math.min.apply(null, indents) : 0;
+      return stripped.map(l => (l === '' ? '' : l.slice(shared)));
+    }
+
+    /// Rejoins lines the terminal broke mid-sentence, while keeping deliberate
+    /// breaks. A wrapped line runs to (nearly) the full width; a line the author
+    /// ended, such as "Viele Grüße", is short and stays on its own.
+    function unwrapLines(lines) {
+      const width = lines.reduce((max, l) => Math.max(max, l.length), 0);
+      if (width < 40) return lines;
+      const threshold = width - 15;
+
+      const out = [];
+      let current = null;
+      let lastLength = 0;
+
+      for (const line of lines) {
+        if (line.trim() === '') {
+          if (current !== null) { out.push(current); current = null; }
+          out.push('');
+          continue;
+        }
+        if (current === null) {
+          current = line;
+          lastLength = line.length;
+          continue;
+        }
+        const continues = lastLength >= threshold
+          && !BLOCK_START.test(line)
+          && !BLOCK_START.test(current);
+        if (continues) {
+          current = current.replace(/\s+$/, '') + ' ' + line.replace(/^\s+/, '');
+        } else {
+          out.push(current);
+          current = line;
+        }
+        lastLength = line.length;
+      }
+      if (current !== null) out.push(current);
+      return out;
+    }
+
+    function cleanConsoleText(raw) {
+      const stripped = stripGutter(raw);
+      if (!stripped) return raw;
+      const joined = unwrapLines(stripped).join('\n');
+      return joined.replace(/^\n+/, '').replace(/\n+$/, '') + '\n';
+    }
+    // TESTABLE REGION END
+
+    window.cleanConsoleText = cleanConsoleText;
+
+    /// Runs the text through ProseMirror's own paste pipeline, so it is parsed
+    /// exactly like a real paste.
+    window.insertCleanText = function(raw) {
+      const cleaned = cleanConsoleText(raw);
+      if (!editor) return cleaned;
+      editor.action((ctx) => {
+        const view = ctx.get(editorViewCtx);
+        view.focus();
+        if (typeof view.pasteText === 'function') {
+          view.pasteText(cleaned);
+        } else {
+          document.execCommand('insertText', false, cleaned);
+        }
+      });
+      return cleaned;
+    };
+
+    // Capture phase, so the cleaned text reaches ProseMirror instead of the raw one.
+    document.addEventListener('paste', function(event) {
+      const data = event.clipboardData;
+      if (!data) return;
+      const raw = data.getData('text/plain');
+      if (!raw) return;
+      const cleaned = cleanConsoleText(raw);
+      if (cleaned === raw) return;  // nothing console-like: leave the paste alone
+      event.preventDefault();
+      event.stopPropagation();
+      window.insertCleanText(raw);
+    }, true);
+
     // ─── Public API (called from Swift / WKWebView) ───────────────────────────
 
     window.setContent = function(markdown) {
